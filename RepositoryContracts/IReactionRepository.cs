@@ -6,8 +6,8 @@ public interface IReactionRepository
 {
     Task<Reaction> AddAsync(Reaction reaction);
     Task DeleteAsync(Reaction reaction);
-    Task DeleteAllAsync(Post post);
-    Task DeleteAllAsync(User user);
-    Task<int> GetTotalOfTypeAsync(Post post, string type);
+    Task DeleteAllByPostAsync(int postId);
+    Task DeleteAllByUserAsync(int userId);
+    Task<int> GetTotalOfTypeAsync(int postId, string type);
     IQueryable<Reaction> GetMany();
 }

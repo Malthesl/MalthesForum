@@ -59,4 +59,14 @@ public class PostInMemoryRepository : IPostRepository
     {
         return posts.AsQueryable();
     }
+
+    public Task<List<Post>> GetPosts(int id)
+    {
+        return Task.FromResult(posts.Where(p => p.SubforumId == id && p.CommentedOnPostId == null).ToList());
+    }
+
+    public Task<List<Post>> GetComments(int id)
+    {
+        return Task.FromResult(posts.Where(p => p.CommentedOnPostId == id).ToList());
+    }
 }

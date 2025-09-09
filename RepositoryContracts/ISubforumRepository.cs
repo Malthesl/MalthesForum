@@ -9,4 +9,5 @@ public interface ISubforumRepository
     Task DeleteAsync(int id);
     Task<Subforum> GetAsync(int id);
     IQueryable<Subforum> GetMany();
+    Task<Subforum?> GetByName(string name);
 }

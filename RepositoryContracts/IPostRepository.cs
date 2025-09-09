@@ -9,4 +9,6 @@ public interface IPostRepository
     Task DeleteAsync(int id);
     Task<Post> GetAsync(int id);
     IQueryable<Post> GetMany();
+    Task<List<Post>> GetPosts(int subforumId);
+    Task<List<Post>> GetComments(int id);
 }

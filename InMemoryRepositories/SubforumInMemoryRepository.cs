@@ -59,4 +59,9 @@ public class SubforumInMemoryRepository : ISubforumRepository
     {
         return subforums.AsQueryable();
     }
+
+    public Task<Subforum?> GetByName(string name)
+    {
+        return Task.FromResult(subforums.SingleOrDefault(p => p.Name == name));
+    }
 }

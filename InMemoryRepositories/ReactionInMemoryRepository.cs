@@ -32,21 +32,21 @@ public class ReactionInMemoryRepository : IReactionRepository
         return Task.FromResult(r);
     }
 
-    public Task DeleteAllAsync(Post post)
+    public Task DeleteAllByPostAsync(int postId)
     {
-        reactions.RemoveAll(reaction => reaction.PostId == post.Id);
+        reactions.RemoveAll(reaction => reaction.PostId == postId);
         return Task.CompletedTask;
     }
 
-    public Task DeleteAllAsync(User user)
+    public Task DeleteAllByUserAsync(int userId)
     {
-        reactions.RemoveAll(reaction => reaction.UserId == user.Id);
+        reactions.RemoveAll(reaction => reaction.UserId == userId);
         return Task.CompletedTask;
     }
 
-    public Task<int> GetTotalOfTypeAsync(Post post, string type)
+    public Task<int> GetTotalOfTypeAsync(int postId, string type)
     {
-        return Task.FromResult(reactions.Count(r => r.PostId == post.Id && r.Type == type));
+        return Task.FromResult(reactions.Count(r => r.PostId == postId && r.Type == type));
     }
 
     public IQueryable<Reaction> GetMany()
