@@ -9,7 +9,7 @@ public class UserInMemoryRepository : IUserRepository
 
     public Task<User> AddAsync(User user)
     {
-        user.Id = users.Any()
+        user.Id = users.Count != 0
             ? users.Max(p => p.Id) + 1
             : 1;
         users.Add(user);

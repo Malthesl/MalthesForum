@@ -9,7 +9,7 @@ public class SubforumInMemoryRepository : ISubforumRepository
 
     public Task<Subforum> AddAsync(Subforum subforum)
     {
-        subforum.Id = subforums.Any()
+        subforum.Id = subforums.Count != 0
             ? subforums.Max(p => p.Id) + 1
             : 1;
         subforums.Add(subforum);

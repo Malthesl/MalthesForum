@@ -9,7 +9,7 @@ public class PostInMemoryRepository : IPostRepository
 
     public Task<Post> AddAsync(Post post)
     {
-        post.Id = posts.Any()
+        post.Id = posts.Count != 0
             ? posts.Max(p => p.Id) + 1
             : 1;
         posts.Add(post);
