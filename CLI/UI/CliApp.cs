@@ -49,6 +49,9 @@ public class CliApp(
                     case "subforum":
                         await _manageSubforums.run(rest);
                         break;
+                    case "clear":
+                        Console.Clear();
+                        break;
                     default:
                         Console.WriteLine($"Kommando {command} findes ikke");
                         break;
