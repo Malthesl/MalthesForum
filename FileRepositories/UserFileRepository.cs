@@ -6,7 +6,7 @@ namespace FileRepositories;
 
 public class UserFileRepository : IUserRepository
 {
-    private readonly string _filePath = "subforums.json";
+    private readonly string _filePath = "users.json";
 
     public UserFileRepository()
     {
