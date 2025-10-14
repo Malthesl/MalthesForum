@@ -10,4 +10,5 @@ public interface ISubforumRepository
     Task<Subforum> GetAsync(int id);
     IQueryable<Subforum> GetMany();
     Task<Subforum?> GetByName(string name);
+    Task<Subforum?> GetByURL(string url);
 }

@@ -35,6 +35,7 @@ public class PostFileRepository : IPostRepository
         
         int maxId = posts.Count != 0 ? posts.Max(c => c.Id) : 1;
         post.Id = maxId + 1;
+        
         posts.Add(post);
         
         await SavePostsToFile(posts);
@@ -49,8 +50,7 @@ public class PostFileRepository : IPostRepository
         Post? existingPost = posts.SingleOrDefault(p => p.Id == post.Id);
         if (existingPost is null)
         {
-            throw new InvalidOperationException(
-                $"Post with ID '{post.Id}' not found");
+            throw new InvalidOperationException($"Post with ID '{post.Id}' not found");
         }
 
         posts.Remove(existingPost);
@@ -66,8 +66,7 @@ public class PostFileRepository : IPostRepository
         Post? postToRemove = posts.SingleOrDefault(p => p.Id == id);
         if (postToRemove is null)
         {
-            throw new InvalidOperationException(
-                $"Post with ID '{id}' not found");
+            throw new InvalidOperationException($"Post with ID '{id}' not found");
         }
 
         posts.Remove(postToRemove);
@@ -82,8 +81,7 @@ public class PostFileRepository : IPostRepository
         Post? post = posts.SingleOrDefault(p => p.Id == id);
         if (post is null)
         {
-            throw new InvalidOperationException(
-                $"Post with ID '{id}' not found");
+            throw new InvalidOperationException($"Post with ID '{id}' not found");
         }
         
         return post;
@@ -101,8 +99,18 @@ public class PostFileRepository : IPostRepository
         return Task.FromResult(GetMany().Where(p => p.SubforumId == id && p.CommentedOnPostId == null).ToList());
     }
 
+    public Task<int> GetTotalPosts(int id)
+    {
+        return Task.FromResult(GetMany().Count(p => p.SubforumId == id && p.CommentedOnPostId == null));
+    }
+
     public Task<List<Post>> GetComments(int id)
     {
         return Task.FromResult(GetMany().Where(p => p.CommentedOnPostId == id).ToList());
+    }
+
+    public Task<int> GetTotalComments(int id)
+    {
+        return Task.FromResult(GetMany().Count(p => p.CommentedOnPostId == id));
     }
 }

@@ -7,7 +7,7 @@ namespace FileRepositories;
 public class SubforumFileRepository : ISubforumRepository
 {
     private readonly string _filePath = "subforums.json";
-    
+
     public SubforumFileRepository()
     {
         if (!File.Exists(_filePath))
@@ -28,33 +28,44 @@ public class SubforumFileRepository : ISubforumRepository
         string subforumsAsJson = JsonSerializer.Serialize(subforums);
         await File.WriteAllTextAsync(_filePath, subforumsAsJson);
     }
-    
+
     public async Task<Subforum> AddAsync(Subforum subforum)
     {
         List<Subforum> subforums = await GetPostsFromFile();
-        
+
+        // Tjek om URL'et er taget
+        if (subforums.Exists(s => s.URL == subforum.URL))
+        {
+            throw new InvalidOperationException("URL name already taken");
+        }
+
         subforum.Id = subforums.Count != 0
             ? subforums.Max(p => p.Id) + 1
             : 1;
         subforums.Add(subforum);
-        
+
         await SavePostsToFile(subforums);
-        
+
         return subforum;
     }
 
     public async Task UpdateAsync(Subforum subforum)
     {
         List<Subforum> subforums = await GetPostsFromFile();
-        
-        Subforum? Subforum = subforums.SingleOrDefault(p => p.Id == subforum.Id);
-        if (Subforum is null)
+
+        Subforum? currentSubforum = subforums.SingleOrDefault(s => s.Id == subforum.Id);
+        if (currentSubforum is null)
         {
-            throw new InvalidOperationException(
-                $"Subforum with ID '{subforum.Id}' not found");
+            throw new InvalidOperationException($"Subforum with ID '{subforum.Id}' not found");
         }
 
-        subforums.Remove(Subforum);
+        // Tjek om URL'et er taget
+        if (subforums.Exists(s => s.URL == subforum.URL && s.Id != subforum.Id))
+        {
+            throw new InvalidOperationException("URL name already taken");
+        }
+
+        subforums.Remove(currentSubforum);
         subforums.Add(subforum);
 
         await SavePostsToFile(subforums);
@@ -63,30 +74,28 @@ public class SubforumFileRepository : ISubforumRepository
     public async Task DeleteAsync(int id)
     {
         List<Subforum> subforums = await GetPostsFromFile();
-        
+
         Subforum? subforumToRemove = subforums.SingleOrDefault(p => p.Id == id);
         if (subforumToRemove is null)
         {
-            throw new InvalidOperationException(
-                $"Subforum with ID '{id}' not found");
+            throw new InvalidOperationException($"Subforum with ID '{id}' not found");
         }
 
         subforums.Remove(subforumToRemove);
-        
+
         await SavePostsToFile(subforums);
     }
 
     public async Task<Subforum> GetAsync(int id)
     {
         List<Subforum> subforums = await GetPostsFromFile();
-        
+
         Subforum? subforum = subforums.SingleOrDefault(p => p.Id == id);
         if (subforum is null)
         {
-            throw new InvalidOperationException(
-                $"Subforum with ID '{id}' not found");
+            throw new InvalidOperationException($"Subforum with ID '{id}' not found");
         }
-        
+
         return subforum;
     }
 
@@ -100,7 +109,14 @@ public class SubforumFileRepository : ISubforumRepository
     public async Task<Subforum?> GetByName(string name)
     {
         List<Subforum> subforums = await GetPostsFromFile();
-        
+
         return subforums.SingleOrDefault(p => p.Name == name);
+    }
+
+    public async Task<Subforum?> GetByURL(string url)
+    {
+        List<Subforum> subforums = await GetPostsFromFile();
+
+        return subforums.SingleOrDefault(p => p.URL == url);
     }
 }

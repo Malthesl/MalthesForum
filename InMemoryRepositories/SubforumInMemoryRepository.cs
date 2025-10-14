@@ -64,4 +64,9 @@ public class SubforumInMemoryRepository : ISubforumRepository
     {
         return Task.FromResult(subforums.SingleOrDefault(p => p.Name == name));
     }
+
+    public Task<Subforum?> GetByURL(string url)
+    {
+        return Task.FromResult(subforums.SingleOrDefault(p => p.URL == url));
+    }
 }

@@ -21,8 +21,7 @@ public class PostInMemoryRepository : IPostRepository
         Post? existingPost = posts.SingleOrDefault(p => p.Id == post.Id);
         if (existingPost is null)
         {
-            throw new InvalidOperationException(
-                $"Post with ID '{post.Id}' not found");
+            throw new InvalidOperationException($"Post with ID '{post.Id}' not found");
         }
 
         posts.Remove(existingPost);
@@ -36,8 +35,7 @@ public class PostInMemoryRepository : IPostRepository
         Post? postToRemove = posts.SingleOrDefault(p => p.Id == id);
         if (postToRemove is null)
         {
-            throw new InvalidOperationException(
-                $"Post with ID '{id}' not found");
+            throw new InvalidOperationException($"Post with ID '{id}' not found");
         }
 
         posts.Remove(postToRemove);
@@ -49,9 +47,9 @@ public class PostInMemoryRepository : IPostRepository
         Post? post = posts.SingleOrDefault(p => p.Id == id);
         if (post is null)
         {
-            throw new InvalidOperationException(
-                $"Post with ID '{id}' not found");
+            throw new InvalidOperationException($"Post with ID '{id}' not found");
         }
+
         return Task.FromResult(post);
     }
 
@@ -65,8 +63,18 @@ public class PostInMemoryRepository : IPostRepository
         return Task.FromResult(posts.Where(p => p.SubforumId == id && p.CommentedOnPostId == null).ToList());
     }
 
+    public Task<int> GetTotalPosts(int id)
+    {
+        return Task.FromResult(posts.Count(p => p.SubforumId == id && p.CommentedOnPostId == null));
+    }
+
     public Task<List<Post>> GetComments(int id)
     {
         return Task.FromResult(posts.Where(p => p.CommentedOnPostId == id).ToList());
+    }
+
+    public Task<int> GetTotalComments(int id)
+    {
+        return Task.FromResult(posts.Count(p => p.CommentedOnPostId == id));
     }
 }

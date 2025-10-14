@@ -33,6 +33,12 @@ public class UserFileRepository : IUserRepository
     {
         List<User> users = await GetPostsFromFile();
 
+        // Tjek om brugernavnet er taget
+        if (users.Exists(p => p.Username == user.Username))
+        {
+            throw new InvalidOperationException("Username already taken");
+        }
+
         user.Id = users.Count != 0
             ? users.Max(p => p.Id) + 1
             : 1;
@@ -54,6 +60,12 @@ public class UserFileRepository : IUserRepository
                 $"User with ID '{user.Id}' not found");
         }
 
+        // Tjek om brugernavnet er taget (ved omdøbning)
+        if (users.Exists(p => p.Username == user.Username && p.Id != user.Id))
+        {
+            throw new InvalidOperationException("Username already taken");
+        }
+
         users.Remove(existingUser);
         users.Add(user);
 
@@ -67,8 +79,7 @@ public class UserFileRepository : IUserRepository
         User? userToRemove = users.SingleOrDefault(p => p.Id == id);
         if (userToRemove is null)
         {
-            throw new InvalidOperationException(
-                $"User with ID '{id}' not found");
+            throw new InvalidOperationException($"User with ID '{id}' not found");
         }
 
         users.Remove(userToRemove);
@@ -83,8 +94,7 @@ public class UserFileRepository : IUserRepository
         User? user = users.SingleOrDefault(p => p.Id == id);
         if (user is null)
         {
-            throw new InvalidOperationException(
-                $"User with ID '{id}' not found");
+            throw new InvalidOperationException($"User with ID '{id}' not found");
         }
 
         return user;
@@ -102,5 +112,12 @@ public class UserFileRepository : IUserRepository
         List<User> users = await GetPostsFromFile();
 
         return users.SingleOrDefault(p => p.Username == username);
+    }
+
+    public async Task<User?> VerifyUserCredentials(string username, string password)
+    {
+        List<User> users = await GetPostsFromFile();
+        
+        return users.FirstOrDefault(user => user.Username == username && user.Password == password);
     }
 }

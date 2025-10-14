@@ -10,4 +10,5 @@ public interface IUserRepository
     Task<User> GetAsync(int id);
     IQueryable<User> GetMany();
     Task<User?> GetByUsername(string username);
+    Task<User?> VerifyUserCredentials(string username, string password);
 }

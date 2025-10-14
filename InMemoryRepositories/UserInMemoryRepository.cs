@@ -64,4 +64,9 @@ public class UserInMemoryRepository : IUserRepository
     {
         return Task.FromResult(users.SingleOrDefault(p => p.Username == username));
     }
+
+    public Task<User?> VerifyUserCredentials(string username, string password)
+    {
+        return Task.FromResult(users.FirstOrDefault(user => user.Username == username && user.Password == password));
+    }
 }
