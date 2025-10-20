@@ -17,7 +17,7 @@ public class PostsController(
     /// <summary>
     /// Hjælpemetode der opretter DTO fra et opslag
     /// </summary>
-    private async Task<PostDTO> ToPostDTO(Post post, int commentDepth = 0)
+    private async Task<IPostDTO> ToPostDTO(Post post, int commentDepth = 0)
     {
         User writtenBy = await users.GetAsync(post.WrittenByUserId);
 
@@ -44,7 +44,7 @@ public class PostsController(
     /// <summary>
     /// Hjælpemetode der opretter DTO fra en kommentar
     /// </summary>
-    private async Task<CommentDTO> ToCommentDTO(Post comment, int commentDepth = 0)
+    private async Task<IPostDTO> ToCommentDTO(Post comment, int commentDepth = 0)
     {
         User writtenBy = await users.GetAsync(comment.WrittenByUserId);
 
@@ -73,7 +73,7 @@ public class PostsController(
     /// </summary>
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="depth">Dybde at hente kommentarer</param>
-    private async Task<CommentDTO[]> GetCommentDTOs(int id, int depth)
+    private async Task<IPostDTO[]> GetCommentDTOs(int id, int depth)
     {
         if (depth == 0) return [];
 
@@ -116,11 +116,11 @@ public class PostsController(
         query = query.Skip(offset).Take(limit);
 
         // Opret DTOs fra resultaterne
-        PostDTO[] dtos = await Task.WhenAll(
-            query.AsEnumerable().Select(post => ToPostDTO(post, commentDepth))
+        IPostDTO[] dtos = await Task.WhenAll(
+            query.AsEnumerable().Select(post => post.CommentedOnPostId is null ? ToPostDTO(post, commentDepth) : ToCommentDTO(post, commentDepth))
         );
 
-        return Ok(new ResponseDTO(new QueryResponseDTO<PostDTO>
+        return Ok(new ResponseDTO(new QueryResponseDTO<Object>
         {
             TotalResults = count,
             StartIndex = offset,
@@ -134,12 +134,12 @@ public class PostsController(
     /// </summary>
     /// <param name="id">ID'et på opslaget</param>
     [HttpGet("{id:int}")]
-    public async Task<ActionResult> GetPost([FromRoute] int id)
+    public async Task<ActionResult> GetPost([FromRoute] int id, [FromQuery] int commentDepth = 3)
     {
         Post post = await posts.GetAsync(id);
 
         return Ok(new ResponseDTO(
-            post.CommentedOnPostId is null ? await ToPostDTO(post, 3) : await ToCommentDTO(post, 3)
+            post.CommentedOnPostId is null ? await ToPostDTO(post, commentDepth) : await ToCommentDTO(post, commentDepth)
         ));
     }
 
@@ -188,8 +188,8 @@ public class PostsController(
             if (post.WrittenByUserId != user.Id && subforum.ModeratorUserId != user.Id)
                 return Unauthorized("Du har ikke rettighed til at ændre dette opslag");
 
-            post.Title = updateDTO.Title;
-            post.Body = updateDTO.Body;
+            if (updateDTO.Title is not null) post.Title = updateDTO.Title;
+            if (updateDTO.Body is not null) post.Body = updateDTO.Body;
 
             post.Edited = true;
             post.EditedDate = DateTime.Now;
@@ -252,7 +252,6 @@ public class PostsController(
         Post newPost = new Post
         {
             SubforumId = parentPost.SubforumId,
-            Title = createDTO.Title,
             Body = createDTO.Body,
             WrittenByUserId = user.Id,
             PostedDate = DateTime.Now,
