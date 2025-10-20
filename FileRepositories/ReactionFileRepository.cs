@@ -53,7 +53,7 @@ public class ReactionFileRepository : IReactionRepository
 
         if (r == null)
         {
-            throw new InvalidOperationException("Reaction already exists");
+            throw new InvalidOperationException("Reaction does not exist");
         }
 
         reactions.Remove(r);
@@ -83,6 +83,18 @@ public class ReactionFileRepository : IReactionRepository
     {
         List<Reaction> reactions = await GetPostsFromFile();
         return reactions.Count(r => r.PostId == postId && r.Type == type);
+    }
+
+    public async Task<Dictionary<string, int>> GetTotalOfEachTypeAsync(int postId)
+    {
+        List<Reaction> reactions = await GetPostsFromFile();
+        return reactions
+            .Where(r => r.PostId == postId)
+            .GroupBy(r => r.Type)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Count()
+            );
     }
 
     public IQueryable<Reaction> GetMany()

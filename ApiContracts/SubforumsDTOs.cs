@@ -18,8 +18,8 @@ public class CreateSubforumDTO
 
 public class UpdateSubforumDTO
 {
-    public required string Name { get; init; }
-    public required string URL { get; init; }
-    public required int ModeratorId { get; init; }
+    public required string? Name { get; init; }
+    public required string? URL { get; init; }
+    public required int? ModeratorId { get; init; }
     public required UserLoginDTO Auth { get; init; }
 }

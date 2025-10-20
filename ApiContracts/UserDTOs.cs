@@ -19,6 +19,11 @@ public class UpdateUserDTO
     public required UserLoginDTO Auth { get; init; }
 }
 
+public class UserAuthDTO
+{
+    public required UserLoginDTO Auth { get; init; }
+}
+
 public class UserLoginDTO
 {
     public required string Username { get; init; }

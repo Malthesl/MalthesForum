@@ -37,8 +37,7 @@ public class PostsController(
             },
             CommentsCount = await posts.GetTotalComments(post.Id),
             Comments = await GetCommentDTOs(post.Id, commentDepth),
-            Likes = await reactions.GetTotalOfTypeAsync(post.Id, "like"),
-            Dislikes = await reactions.GetTotalOfTypeAsync(post.Id, "dislike"),
+            Reactions = await reactions.GetTotalOfEachTypeAsync(post.Id)
         };
     }
 
@@ -62,8 +61,7 @@ public class PostsController(
             CommentedOnPostId = comment.CommentedOnPostId ?? -1,
             CommentsCount = await posts.GetTotalComments(comment.Id),
             Comments = await GetCommentDTOs(comment.Id, commentDepth - 1),
-            Likes = await reactions.GetTotalOfTypeAsync(comment.Id, "like"),
-            Dislikes = await reactions.GetTotalOfTypeAsync(comment.Id, "dislike"),
+            Reactions = await reactions.GetTotalOfEachTypeAsync(comment.Id),
             PostedDate = comment.PostedDate,
             Edited = comment.Edited,
             EditedDate = comment.EditedDate
@@ -100,42 +98,35 @@ public class PostsController(
         [FromQuery] string? search, [FromQuery] DateTime? before, [FromQuery] DateTime? after,
         [FromQuery] int commentDepth = 0, [FromQuery] int limit = 100, [FromQuery] int offset = 0)
     {
-        try
+        IQueryable<Post> query = posts.GetMany();
+
+        // Query efter de forskellige parametre
+        if (subforumId is not null) query = query.Where(p => p.SubforumId == subforumId);
+        if (userId is not null) query = query.Where(p => p.WrittenByUserId == userId);
+        if (search is not null)
+            query = query.Where(p =>
+                p.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                p.Body.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+        if (before is not null) query = query.Where(p => p.PostedDate < before);
+        if (after is not null) query = query.Where(p => p.PostedDate > after);
+
+        int count = query.Count();
+
+        // Kun vælg resultater efter offset og maks limit
+        query = query.Skip(offset).Take(limit);
+
+        // Opret DTOs fra resultaterne
+        PostDTO[] dtos = await Task.WhenAll(
+            query.AsEnumerable().Select(post => ToPostDTO(post, commentDepth))
+        );
+
+        return Ok(new ResponseDTO(new QueryResponseDTO<PostDTO>
         {
-            IQueryable<Post> query = posts.GetMany();
-
-            // Query efter de forskellige parametre
-            if (subforumId is not null) query = query.Where(p => p.SubforumId == subforumId);
-            if (userId is not null) query = query.Where(p => p.WrittenByUserId == userId);
-            if (search is not null)
-                query = query.Where(p =>
-                    p.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                    p.Body.Contains(search, StringComparison.CurrentCultureIgnoreCase));
-            if (before is not null) query = query.Where(p => p.PostedDate < before);
-            if (after is not null) query = query.Where(p => p.PostedDate > after);
-
-            int count = query.Count();
-
-            // Kun vælg resultater efter offset og maks limit
-            query = query.Skip(offset).Take(limit);
-
-            // Opret DTOs fra resultaterne
-            PostDTO[] dtos = await Task.WhenAll(
-                query.AsEnumerable().Select(post => ToPostDTO(post, commentDepth))
-            );
-
-            return Ok(new QueryDTO<PostDTO>
-            {
-                TotalResults = count,
-                StartIndex = offset,
-                EndIndex = Math.Min(offset + limit, count),
-                Results = dtos
-            });
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+            TotalResults = count,
+            StartIndex = offset,
+            EndIndex = Math.Min(offset + limit, count),
+            Results = dtos
+        }));
     }
 
     /// <summary>
@@ -145,16 +136,11 @@ public class PostsController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult> GetPost([FromRoute] int id)
     {
-        try
-        {
-            Post post = await posts.GetAsync(id);
+        Post post = await posts.GetAsync(id);
 
-            return Ok(await ToPostDTO(post, 3));
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Ok(new ResponseDTO(
+            post.CommentedOnPostId is null ? await ToPostDTO(post, 3) : await ToCommentDTO(post, 3)
+        ));
     }
 
     ///
@@ -163,29 +149,22 @@ public class PostsController(
     [HttpPost]
     public async Task<ActionResult> CreatePost([FromBody] CreatePostDTO createDTO)
     {
-        try
+        // Verificer brugeren og hent bruger id
+        User? user = await users.VerifyUserCredentials(createDTO.Auth.Username, createDTO.Auth.Password);
+        if (user is null) return Unauthorized();
+
+        Post newPost = new Post
         {
-            // Verificer brugeren og hent bruger id
-            User? user = await users.VerifyUserCredentials(createDTO.Auth.Username, createDTO.Auth.Password);
-            if (user is null) return Unauthorized();
+            SubforumId = createDTO.SubforumId,
+            Title = createDTO.Title,
+            Body = createDTO.Body,
+            WrittenByUserId = user.Id,
+            PostedDate = DateTime.Now
+        };
 
-            Post newPost = new Post
-            {
-                SubforumId = createDTO.SubforumId,
-                Title = createDTO.Title,
-                Body = createDTO.Body,
-                WrittenByUserId = user.Id,
-                PostedDate = DateTime.Now
-            };
+        await posts.AddAsync(newPost);
 
-            await posts.AddAsync(newPost);
-
-            return Created("/posts/" + newPost.Id, ToPostDTO(newPost));
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Created("/posts/" + newPost.Id, new ResponseDTO(await ToPostDTO(newPost)));
     }
 
     /// <summary>
@@ -216,7 +195,7 @@ public class PostsController(
             post.EditedDate = DateTime.Now;
 
             await posts.UpdateAsync(post);
-            return Ok("Opslaget blev ændret");
+            return Ok(new ResponseDTO("Opslaget blev ændret"));
         }
         catch (Exception e)
         {
@@ -230,28 +209,21 @@ public class PostsController(
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="auth">DTO med loginoplysninger</param>
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> DeletePost([FromRoute] int id, UserLoginDTO auth)
+    public async Task<ActionResult> DeletePost([FromRoute] int id, UserAuthDTO auth)
     {
-        try
-        {
-            Post post = await posts.GetAsync(id);
+        Post post = await posts.GetAsync(id);
 
-            // Tjek login oplysninger
-            User? user = await users.VerifyUserCredentials(auth.Username, auth.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        // Tjek login oplysninger
+        User? user = await users.VerifyUserCredentials(auth.Auth.Username, auth.Auth.Password);
+        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
 
-            // Tjek om brugeren har rettighed til at slette opslaget
-            Subforum subforum = await subforums.GetAsync(post.SubforumId);
-            if (post.WrittenByUserId != user.Id && subforum.ModeratorUserId != user.Id)
-                return Unauthorized("Du har ikke rettighed til at slette dette opslag");
+        // Tjek om brugeren har rettighed til at slette opslaget
+        Subforum subforum = await subforums.GetAsync(post.SubforumId);
+        if (post.WrittenByUserId != user.Id && subforum.ModeratorUserId != user.Id)
+            return Unauthorized("Du har ikke rettighed til at slette dette opslag");
 
-            await posts.DeleteAsync(id);
-            return Ok("Opslaget blev slettet");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        await posts.DeleteAsync(id);
+        return Ok(new ResponseDTO("Opslaget blev slettet"));
     }
 
     /// <summary>
@@ -262,133 +234,82 @@ public class PostsController(
     [HttpGet("{id:int}/comments")]
     public async Task<ActionResult> GetPostComments([FromRoute] int id, [FromQuery] int depth = 3)
     {
-        try
+        return Ok(new ResponseDTO(await GetCommentDTOs(id, depth)));
+    }
+
+    ///
+    /// Opret en kommentar på et opslag
+    ///
+    [HttpPost("{id:int}/comment")]
+    public async Task<ActionResult> CreateComment([FromRoute] int id, [FromBody] CreateCommentDTO createDTO)
+    {
+        // Verificer brugeren og hent bruger id
+        User? user = await users.VerifyUserCredentials(createDTO.Auth.Username, createDTO.Auth.Password);
+        if (user is null) return Unauthorized();
+
+        Post parentPost = await posts.GetAsync(id);
+
+        Post newPost = new Post
         {
-            return Ok(await GetCommentDTOs(id, depth));
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+            SubforumId = parentPost.SubforumId,
+            Title = createDTO.Title,
+            Body = createDTO.Body,
+            WrittenByUserId = user.Id,
+            PostedDate = DateTime.Now,
+            CommentedOnPostId = id
+        };
+
+        await posts.AddAsync(newPost);
+
+        return Created("/posts/" + newPost.Id, new ResponseDTO(await ToCommentDTO(newPost)));
     }
 
     /// <summary>
-    /// Like et opslag
+    /// Reager på et opslag
     /// </summary>
     /// <param name="id">ID'et på opslaget</param>
-    /// <param name="loginDTO">Login-oplysninger</param>
-    [HttpPost("{id:int}/like")]
-    public async Task<ActionResult> Like([FromRoute] int id, [FromBody] UserLoginDTO loginDTO)
+    /// <param name="type">Typen af reaktion (like, dislike)</param>
+    /// <param name="authDTO">Login-oplysninger</param>
+    [HttpPost("{id:int}/react")]
+    public async Task<ActionResult> Like([FromRoute] int id, [FromQuery] string type, [FromBody] UserAuthDTO authDTO)
     {
-        try
+        User? user = await users.VerifyUserCredentials(authDTO.Auth.Username, authDTO.Auth.Password);
+        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+
+        Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
+
+        await reactions.AddAsync(new Reaction
         {
-            User? user = await users.VerifyUserCredentials(loginDTO.Username, loginDTO.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+            Type = type.ToLower(),
+            PostId = id,
+            UserId = user.Id
+        });
 
-            Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
-
-            await reactions.AddAsync(new Reaction
-            {
-                Type = "like",
-                PostId = id,
-                UserId = user.Id
-            });
-
-            return Ok("Du har liket opslaget");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Ok(new ResponseDTO($"Du reagerede med '{type}' på opslaget"));
     }
 
     /// <summary>
-    /// Fjern et like fra et opslag
+    /// Fjern en reaktion fra et opslag
     /// </summary>
     /// <param name="id">ID'et på opslaget</param>
-    /// <param name="loginDTO">Login-oplysninger</param>
-    [HttpDelete("{id:int}/like")]
-    public async Task<ActionResult> Unlike([FromRoute] int id, [FromBody] UserLoginDTO loginDTO)
+    /// <param name="type">Typen af reaktion (like, dislike)</param>
+    /// <param name="authDTO">Login-oplysninger</param>
+    [HttpDelete("{id:int}/react")]
+    public async Task<ActionResult> Unlike([FromRoute] int id, [FromQuery] string type,
+        [FromBody] UserAuthDTO authDTO)
     {
-        try
+        User? user = await users.VerifyUserCredentials(authDTO.Auth.Username, authDTO.Auth.Password);
+        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+
+        Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
+
+        await reactions.DeleteAsync(new Reaction
         {
-            User? user = await users.VerifyUserCredentials(loginDTO.Username, loginDTO.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+            Type = type,
+            PostId = id,
+            UserId = user.Id
+        });
 
-            Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
-
-            await reactions.DeleteAsync(new Reaction
-            {
-                Type = "like",
-                PostId = id,
-                UserId = user.Id
-            });
-
-            return Ok("Dit like blev fjernet");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
-    }
-
-    /// <summary>
-    /// Dislike et opslag
-    /// </summary>
-    /// <param name="id">ID'et på opslaget</param>
-    /// <param name="loginDTO">Login-oplysninger</param>
-    [HttpPost("{id:int}/dislike")]
-    public async Task<ActionResult> Dislike([FromRoute] int id, [FromBody] UserLoginDTO loginDTO)
-    {
-        try
-        {
-            User? user = await users.VerifyUserCredentials(loginDTO.Username, loginDTO.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
-
-            Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
-
-            await reactions.AddAsync(new Reaction
-            {
-                Type = "dislike",
-                PostId = id,
-                UserId = user.Id
-            });
-
-            return Ok("Du har disliket opslaget");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
-    }
-
-    /// <summary>
-    /// Fjern et dislike fra et opslag
-    /// </summary>
-    /// <param name="id">ID'et på opslaget</param>
-    /// <param name="loginDTO">Login-oplysninger</param>
-    [HttpDelete("{id:int}/dislike")]
-    public async Task<ActionResult> Undislike([FromRoute] int id, [FromBody] UserLoginDTO loginDTO)
-    {
-        try
-        {
-            User? user = await users.VerifyUserCredentials(loginDTO.Username, loginDTO.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
-
-            Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
-
-            await reactions.DeleteAsync(new Reaction
-            {
-                Type = "dislike",
-                PostId = id,
-                UserId = user.Id
-            });
-
-            return Ok("Dit dislike blev fjernet");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Ok(new ResponseDTO($"Du fjernede din reaction med '{type}' fra opslaget"));
     }
 }

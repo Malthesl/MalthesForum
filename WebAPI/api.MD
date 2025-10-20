@@ -32,6 +32,10 @@ URL: `GET /posts?subforumId=...&userId=...&search=...&before=...&after=...&comme
 
 URL: `GET /posts?subforumId={subforumId}`
 
+### Opret en kommentar
+
+URL: `POST /posts/{id}/comment`
+
 ## Subforum
 
 ### Hent alle subforums

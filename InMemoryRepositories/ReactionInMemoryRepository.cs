@@ -13,22 +13,23 @@ public class ReactionInMemoryRepository : IReactionRepository
         {
             throw new InvalidOperationException("Reaction already exists");
         }
+
         reactions.Add(reaction);
         return Task.FromResult(reaction);
     }
-    
+
     public Task DeleteAsync(Reaction reaction)
     {
         Reaction? r = reactions.SingleOrDefault(r =>
             r.PostId == reaction.PostId && r.UserId == reaction.UserId && r.Type == reaction.Type);
-        
+
         if (r == null)
         {
-            throw new InvalidOperationException("Reaction already exists");
+            throw new InvalidOperationException("Reaction does not exist");
         }
-        
+
         reactions.Remove(r);
-        
+
         return Task.FromResult(r);
     }
 
@@ -47,6 +48,19 @@ public class ReactionInMemoryRepository : IReactionRepository
     public Task<int> GetTotalOfTypeAsync(int postId, string type)
     {
         return Task.FromResult(reactions.Count(r => r.PostId == postId && r.Type == type));
+    }
+
+    public Task<Dictionary<string, int>> GetTotalOfEachTypeAsync(int postId)
+    {
+        return Task.FromResult(
+            reactions
+                .Where(r => r.PostId == postId)
+                .GroupBy(r => r.Type)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Count()
+                )
+        );
     }
 
     public IQueryable<Reaction> GetMany()

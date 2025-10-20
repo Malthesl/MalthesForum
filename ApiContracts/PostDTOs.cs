@@ -10,8 +10,7 @@ public class PostDTO
     public required int SubforumId { get; init; }
     public required int CommentsCount { get; init; }
     public required CommentDTO[] Comments { get; init; }
-    public required int Likes { get; init; }
-    public required int Dislikes { get; init; }
+    public required Dictionary<string, int> Reactions { get; init; }
     public required DateTime PostedDate { get; init; }
     public required bool Edited { get; init; }
     public required DateTime EditedDate { get; init; }
@@ -28,8 +27,7 @@ public class CommentDTO
     public required int CommentedOnPostId { get; init; }
     public required int CommentsCount { get; init; }
     public required CommentDTO[] Comments { get; init; }
-    public required int Likes { get; init; }
-    public required int Dislikes { get; init; }
+    public required Dictionary<string, int> Reactions { get; init; }
     public required DateTime PostedDate { get; init; }
     public required bool Edited { get; init; }
     public required DateTime EditedDate { get; init; }
@@ -45,6 +43,13 @@ public class UpdatePostDTO
 public class CreatePostDTO
 {
     public required int SubforumId { get; init; }
+    public required string Title { get; init; }
+    public required string Body { get; init; }
+    public required UserLoginDTO Auth { get; init; }
+}
+
+public class CreateCommentDTO
+{
     public required string Title { get; init; }
     public required string Body { get; init; }
     public required UserLoginDTO Auth { get; init; }

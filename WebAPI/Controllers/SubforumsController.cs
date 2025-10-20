@@ -20,33 +20,26 @@ public class SubforumsController(
     [HttpGet]
     public async Task<ActionResult> GetSubforums([FromQuery] string? search, [FromQuery] int? moderatedByUserId)
     {
-        try
+        IQueryable<Subforum> query = subforums.GetMany();
+
+        if (search is not null)
+            query = query.Where(s => s.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+        if (moderatedByUserId is not null) query = query.Where(s => s.ModeratorUserId == moderatedByUserId);
+
+        IEnumerable<SubforumDTO> dtos = query.Select(s => new SubforumDTO
         {
-            IQueryable<Subforum> query = subforums.GetMany();
-
-            if (search is not null)
-                query = query.Where(s => s.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase));
-            if (moderatedByUserId is not null) query = query.Where(s => s.ModeratorUserId == moderatedByUserId);
-
-            IEnumerable<SubforumDTO> dtos = query.Select(s => new SubforumDTO
+            Id = s.Id,
+            Name = s.Name,
+            URL = s.URL,
+            Moderator = new UserDTO
             {
-                Id = s.Id,
-                Name = s.Name,
-                URL = s.URL,
-                Moderator = new UserDTO
-                {
-                    Id = s.ModeratorUserId,
-                    Username = users.GetAsync(s.ModeratorUserId).Result.Username
-                },
-                PostsCount = posts.GetTotalPosts(s.Id).Result
-            }).ToList();
+                Id = s.ModeratorUserId,
+                Username = users.GetAsync(s.ModeratorUserId).Result.Username
+            },
+            PostsCount = posts.GetTotalPosts(s.Id).Result
+        }).ToList();
 
-            return Ok(dtos);
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Ok(new ResponseDTO(dtos));
     }
 
     /// <summary>
@@ -56,27 +49,20 @@ public class SubforumsController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult> GetSubforum([FromRoute] int id)
     {
-        try
-        {
-            Subforum s = await subforums.GetAsync(id);
+        Subforum s = await subforums.GetAsync(id);
 
-            return Ok(new SubforumDTO
-            {
-                Id = s.Id,
-                Name = s.Name,
-                URL = s.URL,
-                Moderator = new UserDTO
-                {
-                    Id = s.ModeratorUserId,
-                    Username = users.GetAsync(s.ModeratorUserId).Result.Username
-                },
-                PostsCount = posts.GetTotalPosts(s.Id).Result
-            });
-        }
-        catch (Exception e)
+        return Ok(new ResponseDTO(new SubforumDTO
         {
-            return BadRequest(e.Message);
-        }
+            Id = s.Id,
+            Name = s.Name,
+            URL = s.URL,
+            Moderator = new UserDTO
+            {
+                Id = s.ModeratorUserId,
+                Username = users.GetAsync(s.ModeratorUserId).Result.Username
+            },
+            PostsCount = posts.GetTotalPosts(s.Id).Result
+        }));
     }
 
     /// <summary>
@@ -86,18 +72,11 @@ public class SubforumsController(
     [HttpGet("{urlName}")]
     public async Task<ActionResult> GetSubforumByUrlName([FromRoute] string urlName)
     {
-        try
-        {
-            Subforum s = await subforums.GetByURL(urlName);
+        Subforum s = await subforums.GetByURL(urlName);
 
-            if (s is null) return NotFound("Subforum findes ikke :(");
+        if (s is null) return NotFound("Subforum findes ikke :(");
 
-            return await GetSubforum(s.Id);
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return await GetSubforum(s.Id);
     }
 
     /// <summary>
@@ -105,40 +84,33 @@ public class SubforumsController(
     /// </summary>
     /// <param name="updateDTO">DTO oplysninger om subforummet og loginoplysninger</param>
     [HttpPost]
-    public async Task<ActionResult> UpdateSubforum([FromBody] CreateSubforumDTO updateDTO)
+    public async Task<ActionResult> CreateSubforum([FromBody] CreateSubforumDTO updateDTO)
     {
-        try
+        // Tjek login oplysninger
+        User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
+        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+
+        Subforum newSubforum = new Subforum
         {
-            // Tjek login oplysninger
-            User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+            Name = updateDTO.Name,
+            URL = updateDTO.URL,
+            ModeratorUserId = user.Id
+        };
 
-            Subforum newSubforum = new Subforum
-            {
-                Name = updateDTO.Name,
-                URL = updateDTO.URL,
-                ModeratorUserId = user.Id
-            };
+        await subforums.AddAsync(newSubforum);
 
-            await subforums.AddAsync(newSubforum);
-
-            return Created("/subforums/" + newSubforum.Id, new SubforumDTO
-            {
-                Id = newSubforum.Id,
-                Name = newSubforum.Name,
-                URL = newSubforum.URL,
-                Moderator = new UserDTO
-                {
-                    Id = newSubforum.ModeratorUserId,
-                    Username = user.Username
-                },
-                PostsCount = 0
-            });
-        }
-        catch (Exception e)
+        return Created("/subforums/" + newSubforum.Id, new ResponseDTO(new SubforumDTO
         {
-            return BadRequest(e.Message);
-        }
+            Id = newSubforum.Id,
+            Name = newSubforum.Name,
+            URL = newSubforum.URL,
+            Moderator = new UserDTO
+            {
+                Id = newSubforum.ModeratorUserId,
+                Username = user.Username
+            },
+            PostsCount = 0
+        }));
     }
 
     /// <summary>
@@ -149,29 +121,22 @@ public class SubforumsController(
     [HttpPost("{id:int}")]
     public async Task<ActionResult> UpdateSubforum([FromRoute] int id, [FromBody] UpdateSubforumDTO updateDTO)
     {
-        try
-        {
-            // Tjek login oplysninger
-            User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        // Tjek login oplysninger
+        User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
+        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
 
-            // Tjek om brugeren har rettighed til at ændre subforummet
-            Subforum subforum = await subforums.GetAsync(id);
-            if (subforum.ModeratorUserId != user.Id)
-                return Unauthorized("Du har ikke rettighed til at ændre dette subforum");
+        // Tjek om brugeren har rettighed til at ændre subforummet
+        Subforum subforum = await subforums.GetAsync(id);
+        if (subforum.ModeratorUserId != user.Id)
+            return Unauthorized("Du har ikke rettighed til at ændre dette subforum");
 
-            subforum.Name = updateDTO.Name;
-            subforum.URL = updateDTO.URL;
-            subforum.ModeratorUserId = updateDTO.ModeratorId;
+        if (updateDTO.Name is not null) subforum.Name = updateDTO.Name;
+        if (updateDTO.URL is not null) subforum.URL = updateDTO.URL;
+        if (updateDTO.ModeratorId is not null) subforum.ModeratorUserId = updateDTO.ModeratorId ?? -1;
 
-            await subforums.UpdateAsync(subforum);
+        await subforums.UpdateAsync(subforum);
 
-            return Ok("Subforummet blev ændret");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Ok(new ResponseDTO("Subforummet blev ændret"));
     }
 
     /// <summary>
@@ -180,28 +145,21 @@ public class SubforumsController(
     /// <param name="id">ID'et på subforummet</param>
     /// <param name="authDTO">Loginoplysninger</param>
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> DeleteSubforum([FromRoute] int id, [FromBody] UserLoginDTO authDTO)
+    public async Task<ActionResult> DeleteSubforum([FromRoute] int id, [FromBody] UserAuthDTO authDTO)
     {
-        try
-        {
-            // Tjek login oplysninger
-            User? user = await users.VerifyUserCredentials(authDTO.Username, authDTO.Password);
-            if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        // Tjek login oplysninger
+        User? user = await users.VerifyUserCredentials(authDTO.Auth.Username, authDTO.Auth.Password);
+        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
 
-            // Tjek om brugeren har rettighed til at slette subforummet
-            Subforum subforum = await subforums.GetAsync(id);
-            if (subforum.ModeratorUserId != user.Id)
-                return Unauthorized("Du har ikke rettighed til at slette dette subforum");
+        // Tjek om brugeren har rettighed til at slette subforummet
+        Subforum subforum = await subforums.GetAsync(id);
+        if (subforum.ModeratorUserId != user.Id)
+            return Unauthorized("Du har ikke rettighed til at slette dette subforum");
 
-            await subforums.DeleteAsync(id);
+        await subforums.DeleteAsync(id);
 
-            // TODO: Burde nok også slette alle opslag i subforummet
+        // TODO: Burde nok også slette alle opslag i subforummet
 
-            return Ok("Subforummet blev slettet");
-        }
-        catch (Exception e)
-        {
-            return BadRequest(e.Message);
-        }
+        return Ok(new ResponseDTO("Subforummet blev slettet"));
     }
 }
