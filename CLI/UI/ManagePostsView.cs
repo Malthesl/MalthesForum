@@ -285,7 +285,8 @@ public class ManagePostsView(
             Title = title,
             Body = body,
             SubforumId = subforum.Id,
-            WrittenByUserId = (int)viewState.CurrentUser
+            WrittenByUserId = (int)viewState.CurrentUser,
+            PostedDate = DateTime.Now
         });
 
         Console.WriteLine($"Oprettede dit opslag {title}");
@@ -316,7 +317,8 @@ public class ManagePostsView(
             Body = body,
             SubforumId = post.SubforumId,
             WrittenByUserId = (int)viewState.CurrentUser,
-            CommentedOnPostId = post.Id
+            CommentedOnPostId = post.Id,
+            PostedDate = DateTime.Now
         });
 
         Console.WriteLine($"Oprettede din kommentar");
