@@ -16,7 +16,7 @@ public class SubforumFileRepository : ISubforumRepository
         }
     }
 
-    private async Task<List<Subforum>> GetPostsFromFile()
+    private async Task<List<Subforum>> GetSubforumsFromFile()
     {
         string subforumsAsJson = await File.ReadAllTextAsync(_filePath);
         List<Subforum> subforums = JsonSerializer.Deserialize<List<Subforum>>(subforumsAsJson)!;
@@ -31,7 +31,7 @@ public class SubforumFileRepository : ISubforumRepository
 
     public async Task<Subforum> AddAsync(Subforum subforum)
     {
-        List<Subforum> subforums = await GetPostsFromFile();
+        List<Subforum> subforums = await GetSubforumsFromFile();
 
         // Tjek om URL'et er taget
         if (subforums.Exists(s => s.URL == subforum.URL))
@@ -51,7 +51,7 @@ public class SubforumFileRepository : ISubforumRepository
 
     public async Task UpdateAsync(Subforum subforum)
     {
-        List<Subforum> subforums = await GetPostsFromFile();
+        List<Subforum> subforums = await GetSubforumsFromFile();
 
         Subforum? currentSubforum = subforums.SingleOrDefault(s => s.Id == subforum.Id);
         if (currentSubforum is null)
@@ -73,7 +73,7 @@ public class SubforumFileRepository : ISubforumRepository
 
     public async Task DeleteAsync(int id)
     {
-        List<Subforum> subforums = await GetPostsFromFile();
+        List<Subforum> subforums = await GetSubforumsFromFile();
 
         Subforum? subforumToRemove = subforums.SingleOrDefault(p => p.Id == id);
         if (subforumToRemove is null)
@@ -88,7 +88,7 @@ public class SubforumFileRepository : ISubforumRepository
 
     public async Task<Subforum> GetAsync(int id)
     {
-        List<Subforum> subforums = await GetPostsFromFile();
+        List<Subforum> subforums = await GetSubforumsFromFile();
 
         Subforum? subforum = subforums.SingleOrDefault(p => p.Id == id);
         if (subforum is null)
@@ -108,14 +108,16 @@ public class SubforumFileRepository : ISubforumRepository
 
     public async Task<Subforum?> GetByName(string name)
     {
-        List<Subforum> subforums = await GetPostsFromFile();
+        List<Subforum> subforums = await GetSubforumsFromFile();
 
         return subforums.SingleOrDefault(p => p.Name == name);
     }
 
     public async Task<Subforum?> GetByURL(string url)
     {
-        List<Subforum> subforums = await GetPostsFromFile();
+        List<Subforum> subforums = await GetSubforumsFromFile();
+        
+        Console.WriteLine("SIZE ahhh: " + subforums[0].Id);
 
         return subforums.SingleOrDefault(p => p.URL == url);
     }

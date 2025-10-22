@@ -39,7 +39,7 @@ public class SubforumsController(
             PostsCount = posts.GetTotalPosts(s.Id).Result
         }).ToList();
 
-        return Ok(new ResponseDTO(dtos));
+        return Ok(dtos);
     }
 
     /// <summary>
@@ -51,7 +51,7 @@ public class SubforumsController(
     {
         Subforum s = await subforums.GetAsync(id);
 
-        return Ok(new ResponseDTO(new SubforumDTO
+        return Ok(new SubforumDTO
         {
             Id = s.Id,
             Name = s.Name,
@@ -62,7 +62,7 @@ public class SubforumsController(
                 Username = users.GetAsync(s.ModeratorUserId).Result.Username
             },
             PostsCount = posts.GetTotalPosts(s.Id).Result
-        }));
+        });
     }
 
     /// <summary>
@@ -99,7 +99,7 @@ public class SubforumsController(
 
         await subforums.AddAsync(newSubforum);
 
-        return Created("/subforums/" + newSubforum.Id, new ResponseDTO(new SubforumDTO
+        return Created("/subforums/" + newSubforum.Id, new SubforumDTO
         {
             Id = newSubforum.Id,
             Name = newSubforum.Name,
@@ -110,7 +110,7 @@ public class SubforumsController(
                 Username = user.Username
             },
             PostsCount = 0
-        }));
+        });
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ public class SubforumsController(
 
         await subforums.UpdateAsync(subforum);
 
-        return Ok(new ResponseDTO("Subforummet blev ændret"));
+        return Ok(new SuccessDTO("Subforummet blev ændret"));
     }
 
     /// <summary>
@@ -160,6 +160,6 @@ public class SubforumsController(
 
         // TODO: Burde nok også slette alle opslag i subforummet
 
-        return Ok(new ResponseDTO("Subforummet blev slettet"));
+        return Ok(new SuccessDTO("Subforummet blev slettet"));
     }
 }

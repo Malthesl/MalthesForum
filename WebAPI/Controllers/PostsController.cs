@@ -17,12 +17,13 @@ public class PostsController(
     /// <summary>
     /// Hjælpemetode der opretter DTO fra et opslag
     /// </summary>
-    private async Task<IPostDTO> ToPostDTO(Post post, int commentDepth = 0)
+    private async Task<PostDTO> ToPostDTO(Post post, int commentDepth = 0)
     {
         User writtenBy = await users.GetAsync(post.WrittenByUserId);
 
         return new PostDTO
         {
+            Type = "post",
             Id = post.Id,
             Body = post.Body,
             Title = post.Title,
@@ -44,12 +45,13 @@ public class PostsController(
     /// <summary>
     /// Hjælpemetode der opretter DTO fra en kommentar
     /// </summary>
-    private async Task<IPostDTO> ToCommentDTO(Post comment, int commentDepth = 0)
+    private async Task<PostDTO> ToCommentDTO(Post comment, int commentDepth = 0)
     {
         User writtenBy = await users.GetAsync(comment.WrittenByUserId);
 
-        return new CommentDTO
+        return new PostDTO
         {
+            Type = "comment",
             Id = comment.Id,
             Body = comment.Body,
             WrittenBy = new UserDTO
@@ -73,7 +75,7 @@ public class PostsController(
     /// </summary>
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="depth">Dybde at hente kommentarer</param>
-    private async Task<IPostDTO[]> GetCommentDTOs(int id, int depth)
+    private async Task<PostDTO[]> GetCommentDTOs(int id, int depth)
     {
         if (depth == 0) return [];
 
@@ -94,18 +96,19 @@ public class PostsController(
     /// <param name="limit">Angiv et maks mængde resultater</param>
     /// <param name="offset">Offset indeks for det første resultat</param>
     [HttpGet]
-    public async Task<ActionResult> GetPosts([FromQuery] int? subforumId, [FromQuery] int? userId,
+    public async Task<ActionResult> GetPosts([FromQuery] int? subforumId, [FromQuery] string? subforumUrl, [FromQuery] int? userId,
         [FromQuery] string? search, [FromQuery] DateTime? before, [FromQuery] DateTime? after,
         [FromQuery] int commentDepth = 0, [FromQuery] int limit = 100, [FromQuery] int offset = 0)
     {
-        IQueryable<Post> query = posts.GetMany();
+        IQueryable<Post> query = posts.GetMany().OrderBy(p => p.PostedDate);
 
         // Query efter de forskellige parametre
+        if (subforumUrl is not null) subforumId = (await subforums.GetByURL(subforumUrl))!.Id;
         if (subforumId is not null) query = query.Where(p => p.SubforumId == subforumId);
         if (userId is not null) query = query.Where(p => p.WrittenByUserId == userId);
         if (search is not null)
             query = query.Where(p =>
-                p.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                p.Title != null && p.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
                 p.Body.Contains(search, StringComparison.CurrentCultureIgnoreCase));
         if (before is not null) query = query.Where(p => p.PostedDate < before);
         if (after is not null) query = query.Where(p => p.PostedDate > after);
@@ -116,17 +119,17 @@ public class PostsController(
         query = query.Skip(offset).Take(limit);
 
         // Opret DTOs fra resultaterne
-        IPostDTO[] dtos = await Task.WhenAll(
+        PostDTO[] dtos = await Task.WhenAll(
             query.AsEnumerable().Select(post => post.CommentedOnPostId is null ? ToPostDTO(post, commentDepth) : ToCommentDTO(post, commentDepth))
         );
 
-        return Ok(new ResponseDTO(new QueryResponseDTO<Object>
+        return Ok(new QueryResponseDTO<Object>
         {
             TotalResults = count,
             StartIndex = offset,
             EndIndex = Math.Min(offset + limit, count),
             Results = dtos
-        }));
+        });
     }
 
     /// <summary>
@@ -138,9 +141,9 @@ public class PostsController(
     {
         Post post = await posts.GetAsync(id);
 
-        return Ok(new ResponseDTO(
+        return Ok(
             post.CommentedOnPostId is null ? await ToPostDTO(post, commentDepth) : await ToCommentDTO(post, commentDepth)
-        ));
+        );
     }
 
     ///
@@ -164,7 +167,7 @@ public class PostsController(
 
         await posts.AddAsync(newPost);
 
-        return Created("/posts/" + newPost.Id, new ResponseDTO(await ToPostDTO(newPost)));
+        return Created("/posts/" + newPost.Id, await ToPostDTO(newPost));
     }
 
     /// <summary>
@@ -195,7 +198,7 @@ public class PostsController(
             post.EditedDate = DateTime.Now;
 
             await posts.UpdateAsync(post);
-            return Ok(new ResponseDTO("Opslaget blev ændret"));
+            return Ok("Opslaget blev ændret");
         }
         catch (Exception e)
         {
@@ -223,7 +226,7 @@ public class PostsController(
             return Unauthorized("Du har ikke rettighed til at slette dette opslag");
 
         await posts.DeleteAsync(id);
-        return Ok(new ResponseDTO("Opslaget blev slettet"));
+        return Ok("Opslaget blev slettet");
     }
 
     /// <summary>
@@ -234,7 +237,7 @@ public class PostsController(
     [HttpGet("{id:int}/comments")]
     public async Task<ActionResult> GetPostComments([FromRoute] int id, [FromQuery] int depth = 3)
     {
-        return Ok(new ResponseDTO(await GetCommentDTOs(id, depth)));
+        return Ok(await GetCommentDTOs(id, depth));
     }
 
     ///
@@ -260,7 +263,7 @@ public class PostsController(
 
         await posts.AddAsync(newPost);
 
-        return Created("/posts/" + newPost.Id, new ResponseDTO(await ToCommentDTO(newPost)));
+        return Created("/posts/" + newPost.Id, await ToCommentDTO(newPost));
     }
 
     /// <summary>
@@ -284,7 +287,7 @@ public class PostsController(
             UserId = user.Id
         });
 
-        return Ok(new ResponseDTO($"Du reagerede med '{type}' på opslaget"));
+        return Ok(new SuccessDTO($"Du reagerede med '{type}' på opslaget"));
     }
 
     /// <summary>
@@ -309,6 +312,6 @@ public class PostsController(
             UserId = user.Id
         });
 
-        return Ok(new ResponseDTO($"Du fjernede din reaction med '{type}' fra opslaget"));
+        return Ok(new SuccessDTO($"Du fjernede din reaction med '{type}' fra opslaget"));
     }
 }

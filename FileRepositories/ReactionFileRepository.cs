@@ -16,7 +16,7 @@ public class ReactionFileRepository : IReactionRepository
         }
     }
 
-    private async Task<List<Reaction>> GetPostsFromFile()
+    private async Task<List<Reaction>> GetReactionsFromFile()
     {
         string reactionsAsJson = await File.ReadAllTextAsync(_filePath);
         List<Reaction> reactions = JsonSerializer.Deserialize<List<Reaction>>(reactionsAsJson)!;
@@ -31,7 +31,7 @@ public class ReactionFileRepository : IReactionRepository
 
     public async Task<Reaction> AddAsync(Reaction reaction)
     {
-        List<Reaction> reactions = await GetPostsFromFile();
+        List<Reaction> reactions = await GetReactionsFromFile();
 
         if (reactions.Any(r => r.PostId == reaction.PostId && r.UserId == reaction.UserId && r.Type == reaction.Type))
         {
@@ -46,7 +46,7 @@ public class ReactionFileRepository : IReactionRepository
 
     public async Task DeleteAsync(Reaction reaction)
     {
-        List<Reaction> reactions = await GetPostsFromFile();
+        List<Reaction> reactions = await GetReactionsFromFile();
 
         Reaction? r = reactions.SingleOrDefault(r =>
             r.PostId == reaction.PostId && r.UserId == reaction.UserId && r.Type == reaction.Type);
@@ -63,7 +63,7 @@ public class ReactionFileRepository : IReactionRepository
 
     public async Task DeleteAllByPostAsync(int postId)
     {
-        List<Reaction> reactions = await GetPostsFromFile();
+        List<Reaction> reactions = await GetReactionsFromFile();
 
         reactions.RemoveAll(reaction => reaction.PostId == postId);
 
@@ -72,7 +72,7 @@ public class ReactionFileRepository : IReactionRepository
 
     public async Task DeleteAllByUserAsync(int userId)
     {
-        List<Reaction> reactions = await GetPostsFromFile();
+        List<Reaction> reactions = await GetReactionsFromFile();
 
         reactions.RemoveAll(reaction => reaction.UserId == userId);
 
@@ -81,13 +81,13 @@ public class ReactionFileRepository : IReactionRepository
 
     public async Task<int> GetTotalOfTypeAsync(int postId, string type)
     {
-        List<Reaction> reactions = await GetPostsFromFile();
+        List<Reaction> reactions = await GetReactionsFromFile();
         return reactions.Count(r => r.PostId == postId && r.Type == type);
     }
 
     public async Task<Dictionary<string, int>> GetTotalOfEachTypeAsync(int postId)
     {
-        List<Reaction> reactions = await GetPostsFromFile();
+        List<Reaction> reactions = await GetReactionsFromFile();
         return reactions
             .Where(r => r.PostId == postId)
             .GroupBy(r => r.Type)

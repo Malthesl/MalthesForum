@@ -47,12 +47,12 @@ public class UsersController(IUserRepository users) : ControllerBase
     {
         User user = await users.GetAsync(userId);
 
-        return Ok(new ResponseDTO(new UserDTO
+        return Ok(new UserDTO
             {
                 Id = user.Id,
                 Username = user.Username
             }
-        ));
+        );
     }
 
     /// <summary>
@@ -70,7 +70,7 @@ public class UsersController(IUserRepository users) : ControllerBase
             }
         );
 
-        return Ok(new ResponseDTO("User created"));
+        return Ok(new SuccessDTO("User created"));
     }
 
     /// <summary>
@@ -92,11 +92,11 @@ public class UsersController(IUserRepository users) : ControllerBase
 
         await users.UpdateAsync(user);
 
-        return Ok(new ResponseDTO(new UserDTO
+        return Ok(new UserDTO
         {
             Id = user.Id,
             Username = user.Username
-        }));
+        });
     }
 
     /// <summary>
@@ -116,10 +116,10 @@ public class UsersController(IUserRepository users) : ControllerBase
 
         // TODO: Slet brugerens opslag? Måske man ikke må slette så længe man er moderator?
 
-        return Ok(new ResponseDTO(new UserDTO
+        return Ok(new UserDTO
         {
             Id = user.Id,
             Username = user.Username
-        }));
+        });
     }
 }
