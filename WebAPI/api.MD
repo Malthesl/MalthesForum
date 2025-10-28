@@ -90,18 +90,10 @@ URL: `GET /users?search=...&limit=...&offset=...`
 
 ## Reactions
 
-### Like et opslag
+### Reagere på et opslag
 
 URL: `POST /posts/{id}/like`
 
-### Fjern like på et opslag
+### Fjern reaktion på et opslag
 
 URL: `DELETE /posts/{id}/like`
-
-### Dislike et opslag
-
-URL: `POST /posts/{id}/dislike`
-
-### Fjern dislike på et opslag
-
-URL: `DELETE /posts/{id}/dislike`

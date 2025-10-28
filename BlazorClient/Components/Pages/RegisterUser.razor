@@ -1,0 +1,20 @@
+@page "/register"
+@using BlazorClient.Services
+@inject HttpUserService UserService
+<h3>Opret en bruger</h3>
+
+<label for="username">Brugernavn</label>
+<input type="text" id="username" @bind="_username">
+<label for="password">Password</label>
+<input type="password" id="password" @bind="_password">
+<button @onclick="() => Submit()">Opret bruger</button>
+
+@code {
+    private string _username = "";
+    private string _password = "";
+
+    private async Task Submit()
+    {
+        await UserService.CreateUser(_username, _password);
+    }
+}

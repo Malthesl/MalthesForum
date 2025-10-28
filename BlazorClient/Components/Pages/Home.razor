@@ -1,0 +1,27 @@
+﻿@page "/"
+@using ApiContracts
+@using BlazorClient.Services
+@inject HttpSubforumService SubforumService
+
+<PageTitle>Home</PageTitle>
+
+<p>Velkommen til 👉😎Malthes Forum🤓👈</p>
+<p>Her er de bedste sider på Malthes Forum:</p>
+
+<ul>
+    @foreach (SubforumDTO subforum in _subforums)
+    {
+        <li><a href="/forum/@subforum.URL">@subforum.Name</a></li>
+    }
+</ul>
+
+@code {
+
+    private SubforumDTO[] _subforums = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _subforums = await SubforumService.GetAllSubforums();
+    }
+
+}

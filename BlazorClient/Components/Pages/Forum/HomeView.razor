@@ -1,0 +1,53 @@
+@page "/forum/{urlName}"
+@using ApiContracts
+@using BlazorClient.Components.Lib
+@using BlazorClient.Services
+@inject NavigationManager Nav
+@inject HttpPostService PostService
+@inject HttpSubforumService SubforumService
+
+@if (subforum != null)
+{
+    <Compose SubforumId="subforum.Id" />
+}
+
+@if (subforum != null && posts != null)
+{
+    @foreach (PostDTO post in posts.Results)
+    {
+        <hr />
+        <Post PostData=@post />
+    }
+
+    <hr />
+    <button @onclick="() => SetPage(page - 1)">Forrige</button>
+    <span>Du er på side @posts.CurrentPage ud af @posts.PageCount</span>
+    <button @onclick="() => SetPage(page + 1)">Næste</button>
+}
+
+@code {
+    [Parameter] public string urlName { get; set; }
+
+    [Parameter] [SupplyParameterFromQuery] public int page { get; set; } = 1;
+
+    private Pagination<PostDTO>? posts;
+    private SubforumDTO? subforum;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        posts = await PostService.GetPostsFromSubforum(urlName, page, 10);
+        subforum = await SubforumService.GetSubforum(urlName);
+    }
+
+    // Naviger til andre sider af posts
+    void SetPage(int newPage)
+    {
+        // Alt det her bevarer de andre query-parametre
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        query["page"] = newPage.ToString();
+        var newUrl = $"{uri.GetLeftPart(UriPartial.Path)}?{query}";
+        Nav.NavigateTo(newUrl);
+    }
+
+}

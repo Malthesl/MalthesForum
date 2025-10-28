@@ -1,0 +1,14 @@
+@using ApiContracts
+
+<div class="comments">
+    @foreach (var comment in Comments)
+    {
+        <div class="comment-branch">
+            <Post PostData=@comment ShowComments=true />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required List<PostDTO> Comments { get; set; }
+}

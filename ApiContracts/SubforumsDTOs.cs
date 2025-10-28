@@ -11,15 +11,13 @@ public class SubforumDTO
 
 public class CreateSubforumDTO
 {
-    public required string Name { get; init; }
-    public required string URL { get; init; }
-    public required UserLoginDTO Auth { get; init; }
+    public required string Name { get; set; }
+    public required string URL { get; set; }
 }
 
 public class UpdateSubforumDTO
 {
-    public required string? Name { get; init; }
-    public required string? URL { get; init; }
-    public required int? ModeratorId { get; init; }
-    public required UserLoginDTO Auth { get; init; }
+    public required string? Name { get; set; }
+    public required string? URL { get; set; }
+    public required int? ModeratorId { get; set; }
 }

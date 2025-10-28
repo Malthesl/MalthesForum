@@ -1,0 +1,31 @@
+@using ApiContracts
+@using BlazorClient.Components.Layout
+@using BlazorClient.Services
+@inherits LayoutComponentBase
+@layout MainLayout
+@inject NavigationManager Nav
+@inject HttpSubforumService SubforumService
+
+<div class="forum-layout">
+    <h1><a href="/forum/@_subforum?.URL">@_subforum?.Name</a></h1>
+
+    <main class="content">
+        @Body
+    </main>
+</div>
+
+@code {
+    private SubforumDTO? _subforum;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var uri = new Uri(Nav.Uri);
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length >= 2)
+        {
+            _subforum = await SubforumService.GetSubforum(segments[1]);
+        }
+    }
+
+}

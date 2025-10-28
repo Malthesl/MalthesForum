@@ -1,0 +1,42 @@
+@page "/forum/{urlName}/posts/{id:int}"
+@using ApiContracts
+@using BlazorClient.Components.Lib
+@using BlazorClient.Services
+@inject HttpPostService PostService
+
+@if (_post is not null)
+{
+    <h2>@_post.Title</h2>
+    <h4>af @_post.WrittenBy.Username, @_post.PostedDate.ToString("dddd, dd MMMM yyyy kl HH:mm")</h4>
+    <p>
+        @_post.Reactions.GetValueOrDefault("like") likes,
+        @_post.Reactions.GetValueOrDefault("dislike") dislikes
+    </p>
+    <pre>@_post.Body</pre>
+    <h4>Kommentarer (@_post.CommentsCount)</h4>
+    <div>
+        <input type="text" @bind="_commentText">
+        <button @onclick="SubmitComment">Send kommentar</button>
+    </div>
+    <PostComments Comments="@_post.Comments" />
+}
+
+@code {
+    [Parameter] public required string UrlName { get; set; }
+    [Parameter] public required int Id { get; set; }
+
+    private PostDTO? _post;
+    
+    private string _commentText = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _post = await PostService.GetPost(Id);
+    }
+
+    private async Task SubmitComment()
+    {
+        _post.Comments.Insert(0, await PostService.PostComment(_post.Id, _commentText));
+    }
+
+}

@@ -1,0 +1,68 @@
+@using ApiContracts
+@using BlazorClient.Services
+@inject HttpPostService PostService
+
+<h3><a href="/forum/@PostData.SubforumUrl/posts/@PostData.Id">@PostData.Title</a></h3>
+<p>af @PostData.WrittenBy.Username, @PostData.PostedDate.ToString("dddd, dd MMMM yyyy kl HH:mm")</p>
+<p>
+    @PostData.Reactions.GetValueOrDefault("like") likes,
+    @PostData.Reactions.GetValueOrDefault("dislike") dislikes,
+    <a href="/forum/@PostData.SubforumUrl/posts/@PostData.Id">@PostData.CommentsCount kommentarer</a>
+</p>
+<pre>@PostData.Body</pre>
+<p>
+    <a href="#" @onclick:preventDefault="true" @onclick="ToggleLike">@(PostData.HasReacted.Contains("like") ? "Fortryd like" : "Like")</a>
+    <a href="#" @onclick:preventDefault="true" @onclick="ToggleDislike">@(PostData.HasReacted.Contains("dislike") ? "Fortryd dislike" : "Dislike")</a>
+    <a href="#" @onclick:preventDefault="true" @onclick="ToggleCommentCompose">Kommentér</a>
+</p>
+@if (_showCommentCompose)
+{
+    <div class="comment-compose">
+        <input id="comment-input" type="text" @bind="_commentText">
+        <button @onclick="SubmitComment">Send</button>
+    </div>
+}
+@if (ShowComments)
+{
+    <PostComments Comments=@PostData.Comments />
+}
+
+@code {
+    [Parameter] public required PostDTO PostData { get; set; }
+    [Parameter] public bool ShowComments { get; set; } = false;
+
+    private bool _showCommentCompose = false;
+    private string _commentText = "";
+    private ElementReference _commentInput;
+
+    private async Task ToggleLike()
+    {
+        if (PostData.HasReacted.Contains("like"))
+            await PostService.RemoveReaction(PostData, "like");
+        else
+            await PostService.AddReaction(PostData, "like");
+    }
+
+    private async Task ToggleDislike()
+    {
+        if (PostData.HasReacted.Contains("dislike"))
+            await PostService.RemoveReaction(PostData, "dislike");
+        else
+            await PostService.AddReaction(PostData, "dislike");
+    }
+
+    private async Task ToggleCommentCompose()
+    {
+        _commentText = "";
+        _showCommentCompose = !_showCommentCompose;
+    }
+
+    private async Task SubmitComment()
+    {
+        PostDTO newComment = await PostService.PostComment(PostData.Id, _commentText);
+        PostData.Comments.Insert(0, newComment);
+        PostData.CommentsCount += 1;
+        _showCommentCompose = false;
+    }
+
+}

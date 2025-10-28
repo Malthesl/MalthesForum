@@ -1,0 +1,25 @@
+@using BlazorClient.Services
+@inject HttpPostService PostService
+
+<h3>Opret et opslag</h3>
+
+<input type="text" placeholder="Titel" @bind="_title">
+
+<br/>
+
+<textarea cols="30" rows="10" placeholder="Jeg vil gerne sige..." @bind="_body"></textarea>
+
+<button @onclick="() => Submit()">Compose</button>
+
+@code {
+    [Parameter]
+    public int SubforumId { get; set; }
+    
+    private string _title = "";
+    private string _body = "";
+
+    private async Task Submit()
+    {
+        await PostService.CreatePost(SubforumId, _title, _body);
+    }
+}

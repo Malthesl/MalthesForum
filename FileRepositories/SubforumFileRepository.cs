@@ -117,8 +117,6 @@ public class SubforumFileRepository : ISubforumRepository
     {
         List<Subforum> subforums = await GetSubforumsFromFile();
         
-        Console.WriteLine("SIZE ahhh: " + subforums[0].Id);
-
         return subforums.SingleOrDefault(p => p.URL == url);
     }
 }

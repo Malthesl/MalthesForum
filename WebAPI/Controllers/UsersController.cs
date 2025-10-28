@@ -62,7 +62,7 @@ public class UsersController(IUserRepository users) : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody] CreateUserDTO createDTO)
     {
-        await users.AddAsync(
+        User user = await users.AddAsync(
             new User
             {
                 Username = createDTO.Username,
@@ -70,7 +70,11 @@ public class UsersController(IUserRepository users) : ControllerBase
             }
         );
 
-        return Ok(new SuccessDTO("User created"));
+        return Created("User created", new UserDTO
+        {
+           Id = user.Id,
+           Username = user.Username
+        });
     }
 
     /// <summary>
@@ -82,7 +86,7 @@ public class UsersController(IUserRepository users) : ControllerBase
     public async Task<ActionResult> UpdateUser([FromRoute] int userId, [FromBody] UpdateUserDTO updateDTO)
     {
         // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
+        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
         if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
         // TODO: Måske der skal være nogle admins der har rettighed til at rediger alle?
         if (user.Id != userId) return Unauthorized("Du har ikke rettigheder til at ændre denne bruger");
@@ -103,12 +107,11 @@ public class UsersController(IUserRepository users) : ControllerBase
     /// Slet en bruger
     /// </summary>
     /// <param name="userId">ID'et på brugeren</param>
-    /// <param name="authDTO">Login-oplysninger</param>
     [HttpDelete("{userId:int}")]
-    public async Task<ActionResult> DeleteUser([FromRoute] int userId, [FromBody] UserAuthDTO authDTO)
+    public async Task<ActionResult> DeleteUser([FromRoute] int userId)
     {
         // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials(authDTO.Auth.Username, authDTO.Auth.Password);
+        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
         if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
         if (user.Id != userId) return Unauthorized("Du har ikke rettigheder til at slette denne bruger");
 

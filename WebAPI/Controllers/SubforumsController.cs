@@ -87,7 +87,7 @@ public class SubforumsController(
     public async Task<ActionResult> CreateSubforum([FromBody] CreateSubforumDTO updateDTO)
     {
         // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
+        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
         if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
 
         Subforum newSubforum = new Subforum
@@ -122,7 +122,7 @@ public class SubforumsController(
     public async Task<ActionResult> UpdateSubforum([FromRoute] int id, [FromBody] UpdateSubforumDTO updateDTO)
     {
         // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials(updateDTO.Auth.Username, updateDTO.Auth.Password);
+        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
         if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
 
         // Tjek om brugeren har rettighed til at ændre subforummet
@@ -143,12 +143,11 @@ public class SubforumsController(
     /// Slet et subforum
     /// </summary>
     /// <param name="id">ID'et på subforummet</param>
-    /// <param name="authDTO">Loginoplysninger</param>
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> DeleteSubforum([FromRoute] int id, [FromBody] UserAuthDTO authDTO)
+    public async Task<ActionResult> DeleteSubforum([FromRoute] int id)
     {
         // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials(authDTO.Auth.Username, authDTO.Auth.Password);
+        User? user = await users.VerifyUserCredentials("Malthe", "123");
         if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
 
         // Tjek om brugeren har rettighed til at slette subforummet

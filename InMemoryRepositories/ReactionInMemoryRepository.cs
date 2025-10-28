@@ -63,6 +63,13 @@ public class ReactionInMemoryRepository : IReactionRepository
         );
     }
 
+    public Task<List<string>> GetReactionsOnPostByUser(int postId, int? userId)
+    {
+        return Task.FromResult(
+            reactions.Where(r => r.PostId == postId && r.UserId == userId).Select(r => r.Type).ToList()
+        );
+    }
+
     public IQueryable<Reaction> GetMany()
     {
         return reactions.AsQueryable();

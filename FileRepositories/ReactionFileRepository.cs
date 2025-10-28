@@ -97,6 +97,12 @@ public class ReactionFileRepository : IReactionRepository
             );
     }
 
+    public async Task<List<string>> GetReactionsOnPostByUser(int postId, int? userId)
+    {
+        List<Reaction> reactions = await GetReactionsFromFile();
+        return reactions.Where(r => r.PostId == postId && r.UserId == userId).Select(r => r.Type).ToList();
+    }
+
     public IQueryable<Reaction> GetMany()
     {
         string reactionsAsJson = File.ReadAllTextAsync(_filePath).Result;
