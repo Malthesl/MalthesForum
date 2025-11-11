@@ -1,5 +1,6 @@
 using ApiContracts;
 using Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
 
@@ -20,7 +21,7 @@ public class PostsController(
     private async Task<PostDTO> ToPostDTO(Post post, int? userId, int commentDepth = 0)
     {
         User writtenBy = await users.GetAsync(post.WrittenByUserId);
-        
+
         return new PostDTO
         {
             Type = "post",
@@ -79,14 +80,16 @@ public class PostsController(
     /// </summary>
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="depth">Dybde at hente kommentarer</param>
+    /// <param name="userId">Hent opslagene som en bruger (inkluder informationer om brugeren har reageret på opslaget)</param>
     private async Task<List<PostDTO>> GetCommentDTOs(int id, int depth, int? userId)
     {
         if (depth == 0) return [];
 
         List<Post> comments = await posts.GetComments(id);
-        
 
-        return (await Task.WhenAll(comments.OrderBy(c => c.PostedDate).Reverse().Select(comment => ToCommentDTO(comment, userId, depth - 1)))).ToList();
+
+        return (await Task.WhenAll(comments.OrderBy(c => c.PostedDate).Reverse()
+            .Select(comment => ToCommentDTO(comment, userId, depth - 1)))).ToList();
     }
 
     /// <summary>
@@ -104,14 +107,14 @@ public class PostsController(
     /// <param name="limit">Angiv et maks mængde resultater</param>
     /// <param name="offset">Offset indeks for det første resultat</param>
     [HttpGet]
-    public async Task<ActionResult> GetPosts([FromQuery] int? subforumId,
-        [FromQuery] string? subforumUrl, [FromQuery] string? type, [FromQuery] int? userId,
+    public async Task<ActionResult> GetPosts(
+        [FromQuery] int? subforumId, [FromQuery] string? subforumUrl, [FromQuery] string? type, [FromQuery] int? userId,
         [FromQuery] string? search, [FromQuery] DateTime? before, [FromQuery] DateTime? after,
-        [FromQuery] int? asUserId, [FromQuery] int commentDepth = 0, [FromQuery] int limit = 100,
-        [FromQuery] int offset = 0)
+        [FromQuery] int commentDepth = 0, [FromQuery] int limit = 100, [FromQuery] int offset = 0)
     {
-        // TODO: asUserId skal være fra den bruger der har logget ind...
-        
+        string? userIdClaim = User.FindFirst("Id")?.Value;
+        int? asUserId = userIdClaim is not null ? int.Parse(userIdClaim) : null;
+
         IQueryable<Post> query = posts.GetMany().OrderBy(p => p.PostedDate).Reverse();
 
         // Query efter de forskellige parametre
@@ -151,18 +154,20 @@ public class PostsController(
     /// <summary>
     /// Hent et opslag via id
     /// </summary>
-    /// <param name="asUserId">Brugeren som henter opslagene (for at vise hvilke reaktioner brugeren har givet)</param>
     /// <param name="id">ID'et på opslaget</param>
+    /// <param name="commentDepth"></param>
     [HttpGet("{id:int}")]
-    public async Task<ActionResult> GetPost([FromRoute] int id, [FromQuery] int? asUserId,
-        [FromQuery] int commentDepth = 3)
+    public async Task<ActionResult> GetPost([FromRoute] int id, [FromQuery] int commentDepth = 3)
     {
         Post post = await posts.GetAsync(id);
 
+        string? userIdClaim = User.FindFirst("Id")?.Value;
+        int? userId = userIdClaim is not null ? int.Parse(userIdClaim) : null;
+
         return Ok(
             post.CommentedOnPostId is null
-                ? await ToPostDTO(post, asUserId, commentDepth)
-                : await ToCommentDTO(post, asUserId, commentDepth)
+                ? await ToPostDTO(post, userId, commentDepth)
+                : await ToCommentDTO(post, userId, commentDepth)
         );
     }
 
@@ -170,24 +175,24 @@ public class PostsController(
     /// Opret et opslag i et subforum
     ///
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult> CreatePost([FromBody] CreatePostDTO createDTO)
     {
-        // Verificer brugeren og hent bruger id
-        User? user = await users.VerifyUserCredentials("Malhte", "123"); // TODO: Auth
-        if (user is null) return Unauthorized();
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         Post newPost = new Post
         {
             SubforumId = createDTO.SubforumId,
             Title = createDTO.Title,
             Body = createDTO.Body,
-            WrittenByUserId = user.Id,
+            WrittenByUserId = userId,
             PostedDate = DateTime.Now
         };
 
         await posts.AddAsync(newPost);
 
-        return Created("/posts/" + newPost.Id, await ToPostDTO(newPost, user.Id));
+        return Created("/posts/" + newPost.Id, await ToPostDTO(newPost, userId));
     }
 
     /// <summary>
@@ -196,17 +201,17 @@ public class PostsController(
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="updateDTO">DTO objekt med ændringer til opslaget og loginoplysninger</param>
     [HttpPost("{id:int}")]
+    [Authorize]
     public async Task<ActionResult> UpdatePost([FromRoute] int id, UpdatePostDTO updateDTO)
     {
         Post post = await posts.GetAsync(id);
 
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         // Tjek om brugeren har rettighed til at ændre opslaget
         Subforum subforum = await subforums.GetAsync(post.SubforumId);
-        if (post.WrittenByUserId != user.Id && subforum.ModeratorUserId != user.Id)
+        if (post.WrittenByUserId != userId && subforum.ModeratorUserId != userId)
             return Unauthorized("Du har ikke rettighed til at ændre dette opslag");
 
         if (updateDTO.Title is not null) post.Title = updateDTO.Title;
@@ -225,17 +230,17 @@ public class PostsController(
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="auth">DTO med loginoplysninger</param>
     [HttpDelete("{id:int}")]
+    [Authorize]
     public async Task<ActionResult> DeletePost([FromRoute] int id)
     {
         Post post = await posts.GetAsync(id);
 
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         // Tjek om brugeren har rettighed til at slette opslaget
         Subforum subforum = await subforums.GetAsync(post.SubforumId);
-        if (post.WrittenByUserId != user.Id && subforum.ModeratorUserId != user.Id)
+        if (post.WrittenByUserId != userId && subforum.ModeratorUserId != userId)
             return Unauthorized("Du har ikke rettighed til at slette dette opslag");
 
         await posts.DeleteAsync(id);
@@ -257,11 +262,12 @@ public class PostsController(
     /// Opret en kommentar på et opslag
     ///
     [HttpPost("{id:int}/comment")]
+    [Authorize]
     public async Task<ActionResult> CreateComment([FromRoute] int id, [FromBody] CreateCommentDTO createDTO)
     {
         // Verificer brugeren og hent bruger id
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized();
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         Post parentPost = await posts.GetAsync(id);
 
@@ -269,14 +275,14 @@ public class PostsController(
         {
             SubforumId = parentPost.SubforumId,
             Body = createDTO.Body,
-            WrittenByUserId = user.Id,
+            WrittenByUserId = userId,
             PostedDate = DateTime.Now,
             CommentedOnPostId = id
         };
 
         await posts.AddAsync(newPost);
 
-        return Created("/posts/" + newPost.Id, await ToCommentDTO(newPost, user.Id));
+        return Created("/posts/" + newPost.Id, await ToCommentDTO(newPost, userId));
     }
 
     /// <summary>
@@ -285,10 +291,11 @@ public class PostsController(
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="type">Typen af reaktion (like, dislike)</param>
     [HttpPost("{id:int}/react")]
+    [Authorize]
     public async Task<ActionResult> React([FromRoute] int id, [FromQuery] string type)
     {
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
 
@@ -296,7 +303,7 @@ public class PostsController(
         {
             Type = type.ToLower(),
             PostId = id,
-            UserId = user.Id
+            UserId = userId
         });
 
         return Ok(new SuccessDTO($"Du reagerede med '{type}' på opslaget"));
@@ -308,10 +315,11 @@ public class PostsController(
     /// <param name="id">ID'et på opslaget</param>
     /// <param name="type">Typen af reaktion (like, dislike)</param>
     [HttpDelete("{id:int}/react")]
+    [Authorize]
     public async Task<ActionResult> Unreact([FromRoute] int id, [FromQuery] string type)
     {
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         Post post = await posts.GetAsync(id); // Thrower hvis opslaget ikke findes
 
@@ -319,7 +327,7 @@ public class PostsController(
         {
             Type = type,
             PostId = id,
-            UserId = user.Id
+            UserId = userId
         });
 
         return Ok(new SuccessDTO($"Du fjernede din reaction med '{type}' fra opslaget"));

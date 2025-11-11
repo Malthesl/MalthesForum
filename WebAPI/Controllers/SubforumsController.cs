@@ -1,5 +1,6 @@
 using ApiContracts;
 using Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
 
@@ -59,7 +60,7 @@ public class SubforumsController(
             Moderator = new UserDTO
             {
                 Id = s.ModeratorUserId,
-                Username = users.GetAsync(s.ModeratorUserId).Result.Username
+                Username = (await users.GetAsync(s.ModeratorUserId)).Username
             },
             PostsCount = posts.GetTotalPosts(s.Id).Result
         });
@@ -72,7 +73,7 @@ public class SubforumsController(
     [HttpGet("{urlName}")]
     public async Task<ActionResult> GetSubforumByUrlName([FromRoute] string urlName)
     {
-        Subforum s = await subforums.GetByURL(urlName);
+        Subforum? s = await subforums.GetByURL(urlName);
 
         if (s is null) return NotFound("Subforum findes ikke :(");
 
@@ -84,17 +85,17 @@ public class SubforumsController(
     /// </summary>
     /// <param name="updateDTO">DTO oplysninger om subforummet og loginoplysninger</param>
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult> CreateSubforum([FromBody] CreateSubforumDTO updateDTO)
     {
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         Subforum newSubforum = new Subforum
         {
             Name = updateDTO.Name,
             URL = updateDTO.URL,
-            ModeratorUserId = user.Id
+            ModeratorUserId = userId
         };
 
         await subforums.AddAsync(newSubforum);
@@ -107,7 +108,7 @@ public class SubforumsController(
             Moderator = new UserDTO
             {
                 Id = newSubforum.ModeratorUserId,
-                Username = user.Username
+                Username = (await users.GetAsync(newSubforum.ModeratorUserId)).Username
             },
             PostsCount = 0
         });
@@ -119,15 +120,15 @@ public class SubforumsController(
     /// <param name="id">ID'et på subforummet</param>
     /// <param name="updateDTO">DTO med hvad der skal ændres (navn, url) og loginoplysninger</param>
     [HttpPost("{id:int}")]
+    [Authorize]
     public async Task<ActionResult> UpdateSubforum([FromRoute] int id, [FromBody] UpdateSubforumDTO updateDTO)
     {
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         // Tjek om brugeren har rettighed til at ændre subforummet
         Subforum subforum = await subforums.GetAsync(id);
-        if (subforum.ModeratorUserId != user.Id)
+        if (subforum.ModeratorUserId != userId)
             return Unauthorized("Du har ikke rettighed til at ændre dette subforum");
 
         if (updateDTO.Name is not null) subforum.Name = updateDTO.Name;
@@ -146,13 +147,12 @@ public class SubforumsController(
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteSubforum([FromRoute] int id)
     {
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123");
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int userId = int.Parse(userIdClaim);
 
         // Tjek om brugeren har rettighed til at slette subforummet
         Subforum subforum = await subforums.GetAsync(id);
-        if (subforum.ModeratorUserId != user.Id)
+        if (subforum.ModeratorUserId != userId)
             return Unauthorized("Du har ikke rettighed til at slette dette subforum");
 
         await subforums.DeleteAsync(id);

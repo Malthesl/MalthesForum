@@ -1,5 +1,6 @@
 using ApiContracts;
 using Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RepositoryContracts;
 
@@ -83,24 +84,23 @@ public class UsersController(IUserRepository users) : ControllerBase
     /// <param name="userId">ID'et på brugeren</param>
     /// <param name="updateDTO">Oplysninger om ændringer og brugerens login-oplysinger</param>
     [HttpPost("{userId:int}")]
+    [Authorize]
     public async Task<ActionResult> UpdateUser([FromRoute] int userId, [FromBody] UpdateUserDTO updateDTO)
     {
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int authUserId = int.Parse(userIdClaim);
+        
         // TODO: Måske der skal være nogle admins der har rettighed til at rediger alle?
-        if (user.Id != userId) return Unauthorized("Du har ikke rettigheder til at ændre denne bruger");
+        if (authUserId != userId) return Unauthorized("Du har ikke rettigheder til at ændre denne bruger");
+        
+        User user = await users.GetAsync(userId);
 
         if (updateDTO.Username is not null) user.Username = updateDTO.Username;
         if (updateDTO.Password is not null) user.Password = updateDTO.Password;
 
         await users.UpdateAsync(user);
 
-        return Ok(new UserDTO
-        {
-            Id = user.Id,
-            Username = user.Username
-        });
+        return Ok(new SuccessDTO("Brugeren blev opdateret"));
     }
 
     /// <summary>
@@ -108,21 +108,18 @@ public class UsersController(IUserRepository users) : ControllerBase
     /// </summary>
     /// <param name="userId">ID'et på brugeren</param>
     [HttpDelete("{userId:int}")]
+    [Authorize]
     public async Task<ActionResult> DeleteUser([FromRoute] int userId)
     {
-        // Tjek login oplysninger
-        User? user = await users.VerifyUserCredentials("Malthe", "123"); // TODO: Auth
-        if (user is null) return Unauthorized("Ugyldig brugernavn eller password");
-        if (user.Id != userId) return Unauthorized("Du har ikke rettigheder til at slette denne bruger");
+        string userIdClaim = User.FindFirst("Id")!.Value;
+        int authUserId = int.Parse(userIdClaim);
+        
+        if (authUserId != userId) return Unauthorized("Du har ikke rettigheder til at slette denne bruger");
 
         await users.DeleteAsync(userId);
 
         // TODO: Slet brugerens opslag? Måske man ikke må slette så længe man er moderator?
 
-        return Ok(new UserDTO
-        {
-            Id = user.Id,
-            Username = user.Username
-        });
+        return Ok(new SuccessDTO("Brugeren blev slettet"));
     }
 }

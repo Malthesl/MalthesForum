@@ -1,0 +1,34 @@
+@page "/login"
+@using BlazorClient.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthProvider
+<h3>Opret en bruger</h3>
+
+<AuthorizeView>
+    <Authorized>
+        Dav
+        <NavLink href="/forum/malthegroup">Se malthegroup</NavLink>
+    </Authorized>
+    <NotAuthorized>
+        <label for="username">Brugernavn</label>
+        <input type="text" id="username" @bind="_username">
+        <label for="password">Password</label>
+        <input type="password" id="password" @bind="_password">
+        <button @onclick="() => Login()">Login</button>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string _username = "";
+    private string _password = "";
+
+    private async Task Login()
+    {
+        if (AuthProvider is TokenAuthenticationStateProvider provider)
+        {
+            await provider.SignIn(await AuthService.LoginAndReturnToken(_username, _password));
+        }
+    }
+
+}
