@@ -40,7 +40,10 @@ public class PostRepository(AppContext ctx) : IPostRepository
 
     public async Task<Post> GetAsync(int id)
     {
-        Post? post = ctx.Posts.SingleOrDefault(p => p.Id == id);
+        Post? post = ctx.Posts
+            .Include(p => p.WrittenBy)
+            .Include(p => p.Subforum)
+            .SingleOrDefault(p => p.Id == id);
         return post ?? throw new InvalidOperationException($"Post with ID '{id}' not found");
     }
 

@@ -2,6 +2,7 @@ using ApiContracts;
 using Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RepositoryContracts;
 
 namespace WebAPI.Controllers;
@@ -20,8 +21,6 @@ public class PostsController(
     /// </summary>
     private async Task<PostDTO> ToPostDTO(Post post, int? userId, int commentDepth = 0)
     {
-        User writtenBy = await users.GetAsync(post.WrittenById);
-
         return new PostDTO
         {
             Type = "post",
@@ -29,14 +28,14 @@ public class PostsController(
             Body = post.Body,
             Title = post.Title,
             SubforumId = post.SubforumId,
-            SubforumUrl = (await subforums.GetAsync(post.SubforumId)).Url,
+            SubforumUrl = post.Subforum.Url,
             PostedDate = post.PostedDate,
             Edited = post.Edited,
             EditedDate = post.EditedDate,
             WrittenBy = new UserDTO
             {
-                Id = writtenBy.Id,
-                Username = writtenBy.Username
+                Id = post.WrittenById,
+                Username = post.WrittenBy.Username
             },
             CommentsCount = await posts.GetTotalComments(post.Id),
             Comments = await GetCommentDTOs(post.Id, commentDepth, userId),
@@ -50,8 +49,6 @@ public class PostsController(
     /// </summary>
     private async Task<PostDTO> ToCommentDTO(Post comment, int? userId, int commentDepth = 0)
     {
-        User writtenBy = await users.GetAsync(comment.WrittenBy.Id);
-
         return new PostDTO
         {
             Type = "comment",
@@ -59,11 +56,11 @@ public class PostsController(
             Body = comment.Body,
             WrittenBy = new UserDTO
             {
-                Id = comment.WrittenBy.Id,
-                Username = writtenBy.Username
+                Id = comment.WrittenById,
+                Username = comment.WrittenBy.Username
             },
-            SubforumId = comment.Subforum.Id,
-            SubforumUrl = (await subforums.GetAsync(comment.Subforum.Id)).Url,
+            SubforumId = comment.SubforumId,
+            SubforumUrl = comment.Subforum.Url,
             CommentedOnPostId = comment.CommentedOnId ?? -1,
             CommentsCount = await posts.GetTotalComments(comment.Id),
             Comments = await GetCommentDTOs(comment.Id, commentDepth - 1, userId),
@@ -86,7 +83,6 @@ public class PostsController(
         if (depth == 0) return [];
 
         List<Post> comments = await posts.GetComments(id);
-
 
         return (await Task.WhenAll(comments.OrderBy(c => c.PostedDate).Reverse()
             .Select(comment => ToCommentDTO(comment, userId, depth - 1)))).ToList();
@@ -115,7 +111,12 @@ public class PostsController(
         string? userIdClaim = User.FindFirst("Id")?.Value;
         int? asUserId = userIdClaim is not null ? int.Parse(userIdClaim) : null;
 
-        IQueryable<Post> query = posts.GetMany().OrderBy(p => p.PostedDate).Reverse();
+        IQueryable<Post> query = posts
+            .GetMany()
+            .Include(p => p.Subforum)
+            .Include(p => p.WrittenBy)
+            .OrderBy(p => p.PostedDate)
+            .Reverse();
 
         // Query efter de forskellige parametre
         if (subforumUrl is not null) subforumId = (await subforums.GetByURL(subforumUrl))!.Id;
