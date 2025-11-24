@@ -20,7 +20,7 @@ public class PostsController(
     /// </summary>
     private async Task<PostDTO> ToPostDTO(Post post, int? userId, int commentDepth = 0)
     {
-        User writtenBy = await users.GetAsync(post.WrittenByUserId);
+        User writtenBy = await users.GetAsync(post.WrittenById);
 
         return new PostDTO
         {
@@ -29,7 +29,7 @@ public class PostsController(
             Body = post.Body,
             Title = post.Title,
             SubforumId = post.SubforumId,
-            SubforumUrl = (await subforums.GetAsync(post.SubforumId)).URL,
+            SubforumUrl = (await subforums.GetAsync(post.SubforumId)).Url,
             PostedDate = post.PostedDate,
             Edited = post.Edited,
             EditedDate = post.EditedDate,
@@ -50,7 +50,7 @@ public class PostsController(
     /// </summary>
     private async Task<PostDTO> ToCommentDTO(Post comment, int? userId, int commentDepth = 0)
     {
-        User writtenBy = await users.GetAsync(comment.WrittenByUserId);
+        User writtenBy = await users.GetAsync(comment.WrittenBy.Id);
 
         return new PostDTO
         {
@@ -59,12 +59,12 @@ public class PostsController(
             Body = comment.Body,
             WrittenBy = new UserDTO
             {
-                Id = comment.WrittenByUserId,
+                Id = comment.WrittenBy.Id,
                 Username = writtenBy.Username
             },
-            SubforumId = comment.SubforumId,
-            SubforumUrl = (await subforums.GetAsync(comment.SubforumId)).URL,
-            CommentedOnPostId = comment.CommentedOnPostId ?? -1,
+            SubforumId = comment.Subforum.Id,
+            SubforumUrl = (await subforums.GetAsync(comment.Subforum.Id)).Url,
+            CommentedOnPostId = comment.CommentedOnId ?? -1,
             CommentsCount = await posts.GetTotalComments(comment.Id),
             Comments = await GetCommentDTOs(comment.Id, commentDepth - 1, userId),
             Reactions = await reactions.GetTotalOfEachTypeAsync(comment.Id),
@@ -120,8 +120,8 @@ public class PostsController(
         // Query efter de forskellige parametre
         if (subforumUrl is not null) subforumId = (await subforums.GetByURL(subforumUrl))!.Id;
         if (subforumId is not null) query = query.Where(p => p.SubforumId == subforumId);
-        if (type is not null) query = query.Where(p => (p.CommentedOnPostId == null) == (type == "post"));
-        if (userId is not null) query = query.Where(p => p.WrittenByUserId == userId);
+        if (type is not null) query = query.Where(p => (p.CommentedOnId == null) == (type == "post"));
+        if (userId is not null) query = query.Where(p => p.WrittenById == userId);
         if (search is not null)
             query = query.Where(p =>
                 p.Title != null && p.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
@@ -137,7 +137,7 @@ public class PostsController(
         // Opret DTOs fra resultaterne
         PostDTO[] dtos = await Task.WhenAll(
             query.AsEnumerable().Select(post =>
-                post.CommentedOnPostId is null
+                post.CommentedOnId is null
                     ? ToPostDTO(post, asUserId, commentDepth)
                     : ToCommentDTO(post, asUserId, commentDepth))
         );
@@ -165,7 +165,7 @@ public class PostsController(
         int? userId = userIdClaim is not null ? int.Parse(userIdClaim) : null;
 
         return Ok(
-            post.CommentedOnPostId is null
+            post.CommentedOnId is null
                 ? await ToPostDTO(post, userId, commentDepth)
                 : await ToCommentDTO(post, userId, commentDepth)
         );
@@ -186,7 +186,7 @@ public class PostsController(
             SubforumId = createDTO.SubforumId,
             Title = createDTO.Title,
             Body = createDTO.Body,
-            WrittenByUserId = userId,
+            WrittenById = userId,
             PostedDate = DateTime.Now
         };
 
@@ -211,7 +211,7 @@ public class PostsController(
 
         // Tjek om brugeren har rettighed til at ændre opslaget
         Subforum subforum = await subforums.GetAsync(post.SubforumId);
-        if (post.WrittenByUserId != userId && subforum.ModeratorUserId != userId)
+        if (post.WrittenById != userId && subforum.ModeratorId != userId)
             return Unauthorized("Du har ikke rettighed til at ændre dette opslag");
 
         if (updateDTO.Title is not null) post.Title = updateDTO.Title;
@@ -240,7 +240,7 @@ public class PostsController(
 
         // Tjek om brugeren har rettighed til at slette opslaget
         Subforum subforum = await subforums.GetAsync(post.SubforumId);
-        if (post.WrittenByUserId != userId && subforum.ModeratorUserId != userId)
+        if (post.WrittenById != userId && subforum.ModeratorId != userId)
             return Unauthorized("Du har ikke rettighed til at slette dette opslag");
 
         await posts.DeleteAsync(id);
@@ -275,9 +275,9 @@ public class PostsController(
         {
             SubforumId = parentPost.SubforumId,
             Body = createDTO.Body,
-            WrittenByUserId = userId,
+            WrittenById = userId,
             PostedDate = DateTime.Now,
-            CommentedOnPostId = id
+            CommentedOnId = id
         };
 
         await posts.AddAsync(newPost);

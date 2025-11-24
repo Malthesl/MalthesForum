@@ -1,9 +1,9 @@
-using System.Text;
-using FileRepositories;
+using EfcRepositories;
 using RepositoryContracts;
 using WebAPI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using AppContext = EfcRepositories.AppContext;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,10 +25,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
-builder.Services.AddScoped<IPostRepository, PostFileRepository>();
-builder.Services.AddScoped<IReactionRepository, ReactionFileRepository>();
-builder.Services.AddScoped<ISubforumRepository, SubforumFileRepository>();
-builder.Services.AddScoped<IUserRepository, UserFileRepository>();
+builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped<IReactionRepository, ReactionRepository>();
+builder.Services.AddScoped<ISubforumRepository, SubforumRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddDbContext<AppContext>();
 
 var app = builder.Build();
 

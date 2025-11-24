@@ -1,6 +1,9 @@
 @page "/register"
 @using BlazorClient.Services
 @inject HttpUserService UserService
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
 <h3>Opret en bruger</h3>
 
 <label for="username">Brugernavn</label>
@@ -15,6 +18,11 @@
 
     private async Task Submit()
     {
-        await UserService.CreateUser(_username, _password);
+        var res = await UserService.CreateUser(_username, _password);
+        if (AuthProvider is TokenAuthenticationStateProvider provider)
+        {
+            await provider.SignIn(await AuthService.LoginAndReturnToken(_username, _password));
+        }
+        if (res is not null) Nav.NavigateTo("/");
     }
 }

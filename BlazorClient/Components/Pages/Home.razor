@@ -15,6 +15,13 @@
     }
 </ul>
 
+<p>Her kan du oprette et subforum</p>
+<label for="name">Navn:</label>
+<input type="text" id="name" @bind="_name">
+<label for="url">URL-navn:</label>
+<input type="text" id="url" @bind="_url">
+<button @onclick="Submit">Opret!</button>
+
 @code {
 
     private SubforumDTO[] _subforums = [];
@@ -24,4 +31,12 @@
         _subforums = await SubforumService.GetAllSubforums();
     }
 
+    private string _name = "";
+    private string _url = "";
+
+    private async Task Submit()
+    {
+        await SubforumService.CreateSubforum(_name, _url);
+    }
+    
 }

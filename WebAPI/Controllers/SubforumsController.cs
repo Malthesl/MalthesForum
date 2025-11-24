@@ -25,17 +25,17 @@ public class SubforumsController(
 
         if (search is not null)
             query = query.Where(s => s.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase));
-        if (moderatedByUserId is not null) query = query.Where(s => s.ModeratorUserId == moderatedByUserId);
+        if (moderatedByUserId is not null) query = query.Where(s => s.ModeratorId == moderatedByUserId);
 
         IEnumerable<SubforumDTO> dtos = query.Select(s => new SubforumDTO
         {
             Id = s.Id,
             Name = s.Name,
-            URL = s.URL,
+            URL = s.Url,
             Moderator = new UserDTO
             {
-                Id = s.ModeratorUserId,
-                Username = users.GetAsync(s.ModeratorUserId).Result.Username
+                Id = s.ModeratorId,
+                Username = users.GetAsync(s.ModeratorId).Result.Username
             },
             PostsCount = posts.GetTotalPosts(s.Id).Result
         }).ToList();
@@ -56,11 +56,11 @@ public class SubforumsController(
         {
             Id = s.Id,
             Name = s.Name,
-            URL = s.URL,
+            URL = s.Url,
             Moderator = new UserDTO
             {
-                Id = s.ModeratorUserId,
-                Username = (await users.GetAsync(s.ModeratorUserId)).Username
+                Id = s.ModeratorId,
+                Username = (await users.GetAsync(s.ModeratorId)).Username
             },
             PostsCount = posts.GetTotalPosts(s.Id).Result
         });
@@ -94,8 +94,8 @@ public class SubforumsController(
         Subforum newSubforum = new Subforum
         {
             Name = updateDTO.Name,
-            URL = updateDTO.URL,
-            ModeratorUserId = userId
+            Url = updateDTO.URL,
+            ModeratorId = userId
         };
 
         await subforums.AddAsync(newSubforum);
@@ -104,11 +104,11 @@ public class SubforumsController(
         {
             Id = newSubforum.Id,
             Name = newSubforum.Name,
-            URL = newSubforum.URL,
+            URL = newSubforum.Url,
             Moderator = new UserDTO
             {
-                Id = newSubforum.ModeratorUserId,
-                Username = (await users.GetAsync(newSubforum.ModeratorUserId)).Username
+                Id = newSubforum.ModeratorId,
+                Username = (await users.GetAsync(newSubforum.ModeratorId)).Username
             },
             PostsCount = 0
         });
@@ -128,12 +128,12 @@ public class SubforumsController(
 
         // Tjek om brugeren har rettighed til at ændre subforummet
         Subforum subforum = await subforums.GetAsync(id);
-        if (subforum.ModeratorUserId != userId)
+        if (subforum.ModeratorId != userId)
             return Unauthorized("Du har ikke rettighed til at ændre dette subforum");
 
         if (updateDTO.Name is not null) subforum.Name = updateDTO.Name;
-        if (updateDTO.URL is not null) subforum.URL = updateDTO.URL;
-        if (updateDTO.ModeratorId is not null) subforum.ModeratorUserId = updateDTO.ModeratorId ?? -1;
+        if (updateDTO.URL is not null) subforum.Url = updateDTO.URL;
+        if (updateDTO.ModeratorId is not null) subforum.ModeratorId = updateDTO.ModeratorId ?? -1;
 
         await subforums.UpdateAsync(subforum);
 
@@ -152,7 +152,7 @@ public class SubforumsController(
 
         // Tjek om brugeren har rettighed til at slette subforummet
         Subforum subforum = await subforums.GetAsync(id);
-        if (subforum.ModeratorUserId != userId)
+        if (subforum.ModeratorId != userId)
             return Unauthorized("Du har ikke rettighed til at slette dette subforum");
 
         await subforums.DeleteAsync(id);

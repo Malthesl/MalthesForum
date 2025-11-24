@@ -3,12 +3,11 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthService AuthService
 @inject AuthenticationStateProvider AuthProvider
-<h3>Opret en bruger</h3>
+<h3>Log ind</h3>
 
 <AuthorizeView>
     <Authorized>
-        Dav
-        <NavLink href="/forum/malthegroup">Se malthegroup</NavLink>
+        Du er logget ind.
     </Authorized>
     <NotAuthorized>
         <label for="username">Brugernavn</label>

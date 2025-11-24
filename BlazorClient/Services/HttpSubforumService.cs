@@ -35,4 +35,21 @@ public class HttpSubforumService(HttpClient client) : ISubforumService
 
         return JsonSerializer.Deserialize<SubforumDTO[]>(response, JsonOptions)!;
     }
+
+    public async Task CreateSubforum(string name, string url)
+    {
+        HttpResponseMessage httpResponse = await client.PostAsJsonAsync($"/subforums", new CreateSubforumDTO
+        {
+            Name = name,
+            URL = url
+        });
+
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            throw new Exception("HTTP FEJL: <" + httpResponse.StatusCode + "> " +
+                                await httpResponse.Content.ReadAsStringAsync()); //TODO
+        }
+
+        string response = await httpResponse.Content.ReadAsStringAsync();
+    }
 }

@@ -119,7 +119,8 @@ public class ManageSubforumsView(
         await subforums.AddAsync(new Subforum
         {
             Name = subforumName,
-            ModeratorUserId = (int)viewState.CurrentUser
+            Url = subforumName,
+            ModeratorId = (int)viewState.CurrentUser
         });
 
         Console.WriteLine($"Oprettede subforum {subforumName}");

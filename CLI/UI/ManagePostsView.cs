@@ -203,9 +203,9 @@ public class ManagePostsView(
         Console.WriteLine($"Der findes {list.Count} opslag i {subforum.Name}");
         foreach (Post post in list)
         {
-            User user = await users.GetAsync(post.WrittenByUserId);
+            User user = await users.GetAsync(post.WrittenById);
             Console.WriteLine(
-                $" - {post.Title} af {(await users.GetAsync(post.WrittenByUserId)).Username} ({user.Id}), {(await posts.GetComments(post.Id)).Count} kommentar(er), {await reactions.GetTotalOfTypeAsync(post.Id, "like")} like(s), {await reactions.GetTotalOfTypeAsync(post.Id, "dislike")} dislike(s)");
+                $" - {post.Title} af {(await users.GetAsync(post.WrittenById)).Username} ({user.Id}), {(await posts.GetComments(post.Id)).Count} kommentar(er), {await reactions.GetTotalOfTypeAsync(post.Id, "like")} like(s), {await reactions.GetTotalOfTypeAsync(post.Id, "dislike")} dislike(s)");
         }
 
         Console.WriteLine("Opslag id'er er i parenteser, læs et opslag med `post read <id>`");
@@ -216,7 +216,7 @@ public class ManagePostsView(
         Post post = await posts.GetAsync(postId);
 
         Subforum subforum = await subforums.GetAsync(post.SubforumId);
-        User user = await users.GetAsync(post.WrittenByUserId);
+        User user = await users.GetAsync(post.WrittenById);
 
         List<Post> comments = await posts.GetComments(post.Id);
 
@@ -236,7 +236,7 @@ public class ManagePostsView(
         Post post = await posts.GetAsync(postId);
 
         Subforum subforum = await subforums.GetAsync(post.SubforumId);
-        User user = await users.GetAsync(post.WrittenByUserId);
+        User user = await users.GetAsync(post.WrittenById);
 
         List<Post> comments = await posts.GetComments(post.Id);
 
@@ -246,7 +246,7 @@ public class ManagePostsView(
 
         foreach (Post comment in comments)
         {
-            User commenter = await users.GetAsync(comment.WrittenByUserId);
+            User commenter = await users.GetAsync(comment.WrittenById);
             Console.WriteLine(
                 $" - {comment.Body}\n   af {user.Username} ({commenter.Id}), {(await posts.GetComments(comment.Id)).Count} kommentar(er), {await reactions.GetTotalOfTypeAsync(comment.Id, "like")} like(s), {await reactions.GetTotalOfTypeAsync(comment.Id, "dislike")} dislike(s)");
         }
@@ -285,7 +285,7 @@ public class ManagePostsView(
             Title = title,
             Body = body,
             SubforumId = subforum.Id,
-            WrittenByUserId = (int)viewState.CurrentUser,
+            WrittenById = (int)viewState.CurrentUser,
             PostedDate = DateTime.Now
         });
 
@@ -316,8 +316,8 @@ public class ManagePostsView(
         {
             Body = body,
             SubforumId = post.SubforumId,
-            WrittenByUserId = (int)viewState.CurrentUser,
-            CommentedOnPostId = post.Id,
+            WrittenById = (int)viewState.CurrentUser,
+            CommentedOnId = post.Id,
             PostedDate = DateTime.Now
         });
 
